@@ -2,24 +2,24 @@ import sys
 import typing
 
 import qdarkstyle
+import qtawesome as qta
 from PyQt5 import QtGui
 from PyQt5.QtCore import QSize, Qt
 from PyQt5.QtGui import QFont, QKeyEvent
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QGridLayout, QLCDNumber, \
     QLabel, QFrame, QSizePolicy, QLayout, QSpacerItem
-import qtawesome as qta
 from superqt import QLabeledSlider
 
-from app.ui_utils import QHLine
+from app.ui_utils import QHLine, AnimatedOnHoverButton
 
 
 class DirectionalButtons(QWidget):
-    def __init__(self, size_btn: typing.Union[int, None]= None):
+    def __init__(self, size_btn: typing.Union[int, None] = None):
         super().__init__()
         if size_btn is None:
             size_btn = 100
 
-        self.radius = round(size_btn/2)
+        self.radius = round(size_btn / 2)
 
         up_icon = qta.icon('ri.arrow-up-s-line')
         self.up_button = QPushButton(up_icon, '')
@@ -61,8 +61,7 @@ class DirectionalButtons(QWidget):
 
     def connect_actions(self):
         for btn in [self.up_button, self.left_button, self.right_button, self.down_button]:
-            btn.clicked.connect(lambda : self.setFocus())
-
+            btn.clicked.connect(lambda: self.setFocus())
 
     def keyPressEvent(self, e: QKeyEvent) -> None:
         key_right = 16777236
@@ -105,7 +104,6 @@ class DirectionalButtons(QWidget):
             """ % (str(self.radius)))
 
 
-
 class XYHandler(QWidget):
     def __init__(self):
         super().__init__()
@@ -116,6 +114,16 @@ class XYHandler(QWidget):
 
         self.xy_directions = DirectionalButtons(size_btn=50)
         self.xy_directions.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+
+        layout_btn = QHBoxLayout()
+        hspacer = QSpacerItem(100, 30, QSizePolicy.Minimum, QSizePolicy.Expanding)
+        self.go_to_btn = AnimatedOnHoverButton("GO TO", duration=300)
+
+        self.home_btn = AnimatedOnHoverButton("HOME", duration=300)
+
+        layout_btn.addWidget(self.go_to_btn)
+        layout_btn.addItem(hspacer)
+        layout_btn.addWidget(self.home_btn)
 
         speed_label = QLabel("Speed")
         acceleration_label = QLabel("Acceleration")
@@ -129,6 +137,8 @@ class XYHandler(QWidget):
         layout = QVBoxLayout()
         layout.addWidget(self.xy_directions)
         layout.addItem(spacer)
+        layout.addLayout(layout_btn)
+        layout.addItem(spacer)
         layout.addWidget(QHLine())
         layout.addItem(spacer)
         layout.addWidget(speed_label)
@@ -136,10 +146,60 @@ class XYHandler(QWidget):
         layout.addItem(spacer)
         layout.addWidget(acceleration_label)
         layout.addWidget(self.acceleration_slider)
+        layout.addItem(spacer)
 
         self.setLayout(layout)
 
+        self.connect_actions()
+        self.display()
 
+    def connect_actions(self) -> None:
+        self.go_to_btn.clicked.connect(self.open_absolute_position_window)
+
+    def open_absolute_position_window(self) -> None:
+        print("win")
+
+    def display(self):
+        self.setStyleSheet(
+            """
+            QPushButton#a {
+                -webkit-transition: all 200ms cubic-bezier(0.390, 0.500, 0.150, 1.360);
+                -moz-transition: all 200ms cubic-bezier(0.390, 0.500, 0.150, 1.360);
+                -ms-transition: all 200ms cubic-bezier(0.390, 0.500, 0.150, 1.360);
+                -o-transition: all 200ms cubic-bezier(0.390, 0.500, 0.150, 1.360);
+                transition: all 200ms cubic-bezier(0.390, 0.500, 0.150, 1.360);
+                display: block;
+                margin: 20px auto;
+                max-width: 180px;
+                text-decoration: none;
+                border-radius: 4px;
+                padding: 20px 30px;
+            }
+            
+            
+            QPushButton#a {
+                color: #fff;
+                border: 2px solid rgba(255, 255, 255, 0.6);
+                text-align: center;
+    
+                text-decoration: none;
+                border-radius: 20px;
+                
+
+                box-shadow: rgba(30, 22, 54, 0.4) 0 0px 0px 2px inset;
+                background-color: None;
+                font-family: Arial, sans-serif;
+                font-weight: bold;
+                font-size: 14px;
+            }
+            
+            QPushButton#a:hover {
+                color: rgba(255, 255, 255, 0.85);
+                box-shadow: rgba(30, 22, 54, 0.7) 0 0px 0px 40px inset;
+            }
+            
+            """
+        )
 
 
 class DisplayCurrentValues(QWidget):
@@ -218,6 +278,7 @@ class DisplayCurrentValues(QWidget):
             }
             """
         )
+        self.setMaximumHeight(150)
 
 
 class DisplayValue(QWidget):
@@ -334,6 +395,6 @@ if __name__ == "__main__":
     app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt5'))
     window = Window()
     window.display_values.x = 5000
-    #window.z = 12000000
+    # window.z = 12000000
     window.show()
     app.exec_()
