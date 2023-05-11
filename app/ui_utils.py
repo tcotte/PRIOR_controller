@@ -2,7 +2,7 @@ import functools
 from typing import Union
 
 from PyQt5 import QtCore, QtGui
-from PyQt5.QtWidgets import QFrame, QPushButton
+from PyQt5.QtWidgets import QFrame, QPushButton, QLabel
 
 
 class QHLine(QFrame):
@@ -12,6 +12,18 @@ class QHLine(QFrame):
         Gray horizontal line which can be insert in layout.
         """
         self.setFrameShape(QFrame.HLine)
+        self.setFrameShadow(QFrame.Sunken)
+        self.setStyleSheet("background-color: gray")
+        self.setFixedHeight(1)
+
+
+class QVLine(QFrame):
+    def __init__(self):
+        super(QVLine, self).__init__()
+        """
+        Gray horizontal line which can be insert in layout.
+        """
+        self.setFrameShape(QFrame.VLine)
         self.setFrameShadow(QFrame.Sunken)
         self.setStyleSheet("background-color: gray")
         self.setFixedHeight(1)
@@ -60,7 +72,6 @@ class AnimatedOnHoverButton(QPushButton):
         self.setStyleSheet(self.style_sheet)
 
     def helper_function(self, color, other_color):
-
         self.setStyleSheet(
             self.style_sheet + "background-color: {bckgd};  color: {font};".format(bckgd=other_color.name(),
                                                                                    font=color.name()))
@@ -91,3 +102,29 @@ class AnimatedOnHoverButton(QPushButton):
             duration=self._duration
         )
         super().leaveEvent(a0)
+
+
+class TitleSectionLabel(QLabel):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setStyleSheet(
+            """
+            color: #b5bac9; 
+            font-size: 37px; 
+            font-weight: lighter; 
+            font-family: system-ui; 
+            margin-right: 20px;
+            """)
+
+
+class FormLabel(QLabel):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setStyleSheet(
+            """
+            color: white; 
+            font-size: 15px; 
+            font-weight: lighter; 
+            font-family: system-ui; 
+            text-transform: uppercase;
+            """)

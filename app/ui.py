@@ -7,19 +7,22 @@ from PyQt5 import QtGui
 from PyQt5.QtCore import QSize, Qt
 from PyQt5.QtGui import QFont, QKeyEvent
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QGridLayout, QLCDNumber, \
-    QLabel, QFrame, QSizePolicy, QLayout, QSpacerItem
+    QLabel, QFrame, QSizePolicy, QLayout, QSpacerItem, QFormLayout
+from qtwidgets import AnimatedToggle
 from superqt import QLabeledSlider
 
-from app.ui_utils import QHLine, AnimatedOnHoverButton
+from app.go_to_windows import GoToXY, GoToZ
+from app.ui_utils import QHLine, AnimatedOnHoverButton, QVLine, TitleSectionLabel, FormLabel
 
 
 class DirectionalButtons(QWidget):
-    def __init__(self, size_btn: typing.Union[int, None] = None):
+    def __init__(self, size_btn: typing.Union[int, None] = None, only_two: bool = False):
         super().__init__()
         if size_btn is None:
             size_btn = 100
-
         self.radius = round(size_btn / 2)
+
+        self.only_two = only_two
 
         up_icon = qta.icon('ri.arrow-up-s-line')
         self.up_button = QPushButton(up_icon, '')
@@ -27,29 +30,35 @@ class DirectionalButtons(QWidget):
         self.up_button.setIconSize(QSize(round(size_btn), round(size_btn)))
         self.up_button.setObjectName('up')
 
-        left_icon = qta.icon('ri.arrow-left-s-line')
-        self.left_button = QPushButton(left_icon, '')
-        self.left_button.setFixedSize(QSize(size_btn, size_btn))
-        self.left_button.setIconSize(QSize(round(size_btn), round(size_btn)))
-        self.left_button.setObjectName('left')
-
-        right_icon = qta.icon('ri.arrow-right-s-line')
-        self.right_button = QPushButton(right_icon, '')
-        self.right_button.setFixedSize(QSize(size_btn, size_btn))
-        self.right_button.setIconSize(QSize(round(size_btn), round(size_btn)))
-        self.right_button.setObjectName('right')
-
         down_icon = qta.icon('ri.arrow-down-s-line')
         self.down_button = QPushButton(down_icon, '')
         self.down_button.setFixedSize(QSize(size_btn, size_btn))
         self.down_button.setIconSize(QSize(round(size_btn), round(size_btn)))
         self.down_button.setObjectName('down')
 
+        if not only_two:
+            left_icon = qta.icon('ri.arrow-left-s-line')
+            self.left_button = QPushButton(left_icon, '')
+            self.left_button.setFixedSize(QSize(size_btn, size_btn))
+            self.left_button.setIconSize(QSize(round(size_btn), round(size_btn)))
+            self.left_button.setObjectName('left')
+
+            right_icon = qta.icon('ri.arrow-right-s-line')
+            self.right_button = QPushButton(right_icon, '')
+            self.right_button.setFixedSize(QSize(size_btn, size_btn))
+            self.right_button.setIconSize(QSize(round(size_btn), round(size_btn)))
+            self.right_button.setObjectName('right')
+
         layout = QGridLayout()
         layout.setObjectName('layout')
         layout.addWidget(self.up_button, 0, 1, 1, 1)
-        layout.addWidget(self.left_button, 1, 0, 1, 1)
-        layout.addWidget(self.right_button, 1, 2, 1, 1)
+        if not only_two:
+            layout.addWidget(self.left_button, 1, 0, 1, 1)
+            layout.addWidget(self.right_button, 1, 2, 1, 1)
+        else:
+            space = QWidget()
+            space.setFixedSize(QSize(size_btn, size_btn))
+            layout.addWidget(space, 1, 0, 1, 1)
         layout.addWidget(self.down_button, 2, 1, 1, 1)
 
         layout.setSizeConstraint(QLayout.SetFixedSize)
@@ -60,7 +69,12 @@ class DirectionalButtons(QWidget):
         self.connect_actions()
 
     def connect_actions(self):
-        for btn in [self.up_button, self.left_button, self.right_button, self.down_button]:
+        if not self.only_two:
+            list_btns = [self.up_button, self.left_button, self.right_button, self.down_button]
+        else:
+            list_btns = [self.up_button, self.down_button]
+
+        for btn in list_btns:
             btn.clicked.connect(lambda: self.setFocus())
 
     def keyPressEvent(self, e: QKeyEvent) -> None:
@@ -69,14 +83,20 @@ class DirectionalButtons(QWidget):
         key_up = 16777235
         key_down = 16777237
 
-        if e.key() == key_right:
-            self.right_button.animateClick()
-        elif e.key() == key_left:
-            self.left_button.animateClick()
-        elif e.key() == key_down:
-            self.down_button.animateClick()
-        elif e.key() == key_up:
-            self.up_button.animateClick()
+        if not self.only_two:
+            if e.key() == key_down:
+                self.down_button.animateClick()
+            elif e.key() == key_up:
+                self.up_button.animateClick()
+            elif e.key() == key_right:
+                self.right_button.animateClick()
+            elif e.key() == key_left:
+                self.left_button.animateClick()
+        else:
+            if e.key() == key_down:
+                self.down_button.animateClick()
+            elif e.key() == key_up:
+                self.up_button.animateClick()
 
         super().keyPressEvent(e)
 
@@ -105,15 +125,21 @@ class DirectionalButtons(QWidget):
 
 
 class XYHandler(QWidget):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, parent):
+        super().__init__(parent)
 
         # arrows
         # speed
         # acceleration
+        self.main_window = parent
 
+        # self.position_window = GoTo(x_position=None, y_position=None)
         self.xy_directions = DirectionalButtons(size_btn=50)
         self.xy_directions.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+
+        title_label = TitleSectionLabel("XY Axis")
+        # font = QFont('MS UI Gothic', 30)
+        # font.setBold(True)
 
         layout_btn = QHBoxLayout()
         hspacer = QSpacerItem(100, 30, QSizePolicy.Minimum, QSizePolicy.Expanding)
@@ -125,28 +151,28 @@ class XYHandler(QWidget):
         layout_btn.addItem(hspacer)
         layout_btn.addWidget(self.home_btn)
 
-        speed_label = QLabel("Speed")
-        acceleration_label = QLabel("Acceleration")
+        speed_label = FormLabel("Speed")
+        acceleration_label = FormLabel("Acceleration")
 
         self.speed_slider = QLabeledSlider(Qt.Orientation.Horizontal)
-        self.speed_slider.setGeometry(10, 10, 30, 400)
         self.acceleration_slider = QLabeledSlider(Qt.Orientation.Horizontal)
 
-        spacer = QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding)
-
         layout = QVBoxLayout()
-        layout.addWidget(self.xy_directions)
-        layout.addItem(spacer)
+        h_layout = QHBoxLayout()
+        h_layout.addWidget(self.xy_directions)
+        h_layout.addWidget(title_label, alignment=Qt.AlignTop | Qt.AlignRight)
+        layout.addLayout(h_layout)
+        layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
         layout.addLayout(layout_btn)
-        layout.addItem(spacer)
+        layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
         layout.addWidget(QHLine())
-        layout.addItem(spacer)
+        layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
         layout.addWidget(speed_label)
         layout.addWidget(self.speed_slider)
-        layout.addItem(spacer)
+        layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
         layout.addWidget(acceleration_label)
         layout.addWidget(self.acceleration_slider)
-        layout.addItem(spacer)
+        layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         self.setLayout(layout)
 
@@ -157,49 +183,112 @@ class XYHandler(QWidget):
         self.go_to_btn.clicked.connect(self.open_absolute_position_window)
 
     def open_absolute_position_window(self) -> None:
-        print("win")
+        dlg = GoToXY(x_position=self.main_window.x, y_position=self.main_window.y)
+        result = dlg.exec_()
+
+        if result == 0:
+            print("quit")
+        else:
+            print("ok")
 
     def display(self):
-        self.setStyleSheet(
-            """
-            QPushButton#a {
-                -webkit-transition: all 200ms cubic-bezier(0.390, 0.500, 0.150, 1.360);
-                -moz-transition: all 200ms cubic-bezier(0.390, 0.500, 0.150, 1.360);
-                -ms-transition: all 200ms cubic-bezier(0.390, 0.500, 0.150, 1.360);
-                -o-transition: all 200ms cubic-bezier(0.390, 0.500, 0.150, 1.360);
-                transition: all 200ms cubic-bezier(0.390, 0.500, 0.150, 1.360);
-                display: block;
-                margin: 20px auto;
-                max-width: 180px;
-                text-decoration: none;
-                border-radius: 4px;
-                padding: 20px 30px;
-            }
-            
-            
-            QPushButton#a {
-                color: #fff;
-                border: 2px solid rgba(255, 255, 255, 0.6);
-                text-align: center;
-    
-                text-decoration: none;
-                border-radius: 20px;
-                
+        print("display")
 
-                box-shadow: rgba(30, 22, 54, 0.4) 0 0px 0px 2px inset;
-                background-color: None;
-                font-family: Arial, sans-serif;
-                font-weight: bold;
-                font-size: 14px;
-            }
-            
-            QPushButton#a:hover {
-                color: rgba(255, 255, 255, 0.85);
-                box-shadow: rgba(30, 22, 54, 0.7) 0 0px 0px 40px inset;
-            }
-            
-            """
-        )
+
+class ZHandler(QWidget):
+    def __init__(self, parent):
+        super().__init__(parent)
+
+        # arrows
+        # speed
+        # acceleration
+        self.main_window = parent
+
+        title_label = TitleSectionLabel("Z Axis")
+
+        self.z_direction = DirectionalButtons(size_btn=50, only_two=True)
+        self.z_direction.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+
+        layout_btn = QHBoxLayout()
+        hspacer = QSpacerItem(100, 30, QSizePolicy.Minimum, QSizePolicy.Expanding)
+        self.go_to_btn = AnimatedOnHoverButton("GO TO", duration=300)
+
+        self.home_btn = AnimatedOnHoverButton("HOME", duration=300)
+
+        layout_btn.addWidget(self.go_to_btn)
+        layout_btn.addItem(hspacer)
+        layout_btn.addWidget(self.home_btn)
+
+        speed_label = FormLabel("Speed")
+        acceleration_label = FormLabel("Acceleration")
+
+        self.speed_slider = QLabeledSlider(Qt.Orientation.Horizontal)
+        self.acceleration_slider = QLabeledSlider(Qt.Orientation.Horizontal)
+
+        spacer = QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding)
+
+        layout = QVBoxLayout()
+        h_layout = QHBoxLayout()
+        h_layout.addWidget(self.z_direction)
+        h_layout.addWidget(title_label, alignment=Qt.AlignRight | Qt.AlignTop)
+        layout.addLayout(h_layout)
+        layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        layout.addLayout(layout_btn)
+        layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        layout.addWidget(QHLine())
+        layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        layout.addWidget(speed_label)
+        layout.addWidget(self.speed_slider)
+        layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        layout.addWidget(acceleration_label)
+        layout.addWidget(self.acceleration_slider)
+        layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
+
+        self.setLayout(layout)
+
+        self.connect_actions()
+        self.display()
+
+    def connect_actions(self) -> None:
+        self.go_to_btn.clicked.connect(self.open_absolute_position_window)
+
+    def open_absolute_position_window(self) -> None:
+        dlg = GoToZ(z_position=self.main_window.z)
+        result = dlg.exec_()
+
+        if result == 0:
+            print("quit")
+        else:
+            print("ok")
+
+    def display(self):
+        pass
+
+
+class GeneralCommands(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        layout = QVBoxLayout()
+
+        form_widget = QWidget()
+        form_layout = QFormLayout()
+        self.joystick_utiliation_cb = AnimatedToggle()
+        self.joystick_utiliation_cb.setFixedSize(QSize(70, 40))
+
+
+        form_layout.addRow(FormLabel("Joystick utilisation"), self.joystick_utiliation_cb)
+        form_widget.setLayout(form_layout)
+
+        self.emergency_btn = AnimatedOnHoverButton("EMERGENCY STOP", font_color=QtGui.QColor(255, 0, 0),
+                                                   background_color=QtGui.QColor(255, 255, 255))
+        self.emergency_btn.setFixedWidth(300)
+
+        layout.addWidget(TitleSectionLabel("General commands"), alignment=Qt.AlignCenter | Qt.AlignTop)
+        layout.addWidget(form_widget, alignment=Qt.AlignCenter)
+        layout.addWidget(self.emergency_btn, alignment=Qt.AlignBottom | Qt.AlignCenter)
+
+        self.setLayout(layout)
 
 
 class DisplayCurrentValues(QWidget):
@@ -379,22 +468,68 @@ class DisplayValue(QWidget):
 class Window(QWidget):
     def __init__(self):
         super().__init__()
+        self._x = None
+        self._y = None
+        self._z = None
+
         layout = QVBoxLayout()
-        xy_widget = XYHandler()
-        xy_widget.setFixedSize(QSize(500, 500))
+        control_layout = QHBoxLayout()
+        xy_widget = XYHandler(parent=self)
+        xy_widget.setFixedSize(QSize(400, 500))
+        z_widget = ZHandler(parent=self)
+        z_widget.setFixedSize(QSize(400, 500))
 
         self.display_values = DisplayCurrentValues()
-        layout.addWidget(xy_widget)
+
+        space_width = 60
+        control_layout.addItem(QSpacerItem(2*space_width, space_width, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        control_layout.addWidget(xy_widget)
+        control_layout.addItem(QSpacerItem(space_width, space_width, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        control_layout.addWidget(z_widget)
+        control_layout.addItem(QSpacerItem(space_width, space_width, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        control_layout.addWidget(GeneralCommands())
+        control_layout.addItem(QSpacerItem(2*space_width, space_width, QSizePolicy.Minimum, QSizePolicy.Expanding))
+
+        layout.addLayout(control_layout)
         layout.addWidget(self.display_values)
 
         self.setLayout(layout)
+
+    @property
+    def x(self) -> int:
+        return self._x
+
+    @x.setter
+    def x(self, value: float) -> None:
+        self._x = round(value)
+        self.display_values.x = self._x
+
+    @property
+    def y(self) -> int:
+        return self._y
+
+    @y.setter
+    def y(self, value: float) -> None:
+        self._y = round(value)
+        self.display_values.y = self._y
+
+    @property
+    def z(self) -> int:
+        return self._z
+
+    @z.setter
+    def z(self, value: float) -> None:
+        self._z = round(value)
+        self.display_values.z = self._z
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt5'))
     window = Window()
-    window.display_values.x = 5000
+    window.x = 5000
+    window.y = 5000
+    window.z = 5000
     # window.z = 12000000
     window.show()
     app.exec_()
