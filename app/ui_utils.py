@@ -2,6 +2,7 @@ import functools
 from typing import Union
 
 from PyQt5 import QtCore, QtGui
+from PyQt5.QtCore import pyqtSignal
 from PyQt5.QtWidgets import QFrame, QPushButton, QLabel
 
 
@@ -128,3 +129,29 @@ class FormLabel(QLabel):
             font-family: system-ui; 
             text-transform: uppercase;
             """)
+
+
+class LongClickButton(QPushButton):
+    click = pyqtSignal()
+    def __init__(self, *args, **kwargs):
+        QPushButton.__init__(self, *args, **kwargs)
+        self.auto_repeat_interval = 100
+        self.setAutoRepeat(True)
+        # self.setAutoRepeatDelay(100)
+        self.setAutoRepeatInterval(self.auto_repeat_interval)
+        self.clicked.connect(self.handleClicked)
+        self._state = 0
+
+    def handleClicked(self):
+        if self.isDown():
+            if self._state == 0:
+                self._state = 1
+                self.setAutoRepeatInterval(self.auto_repeat_interval)
+                self.click.emit()
+            else:
+                self.click.emit()
+        elif self._state == 1:
+            self._state = 0
+            self.setAutoRepeatInterval(self.auto_repeat_interval)
+        else:
+            self.click.emit()

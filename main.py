@@ -1,12 +1,15 @@
 import re
-import string
 import sys
+import threading
 import time
 import typing
 
 import serial
-from email import message_from_bytes
-from serial import Serial
+
+X_DIRECTION = 1
+Y_DIRECTION = -1
+
+
 
 
 def decode(l):
@@ -100,15 +103,16 @@ class Error:
             return "ERROR NOT RECOGNIZED"
 
     def __call__(self, *args, **kwargs):
-        print("[ERROR]", str(self.response))
-
-        if self.response[0] == "E":
-            integer_code = int(re.search(r'\d+', self.response).group(0))
-            print(integer_code)
-            error_code = self.get_error_from_code(code=integer_code)
-            print("[ERROR] : {feature} / {error_code}".format(feature=self.feature, error_code=error_code))
+        if len(self.response) > 0:
+            if self.response[0] == "E":
+                integer_code = int(re.search(r'\d+', self.response).group(0))
+                print(integer_code)
+                error_code = self.get_error_from_code(code=integer_code)
+                print("[ERROR] : {feature} / {error_code}".format(feature=self.feature, error_code=error_code))
+            else:
+                print("[ERROR] : {feature} / {response}".format(feature=self.feature, response=self.response))
         else:
-            print("[ERROR] : {feature} / {response}".format(feature=self.feature, response=self.response))
+            print("[ERROR] : {feature} / {response}".format(feature=self.feature, response="Empty response message"))
 
 
 class PriorController(serial.Serial):
@@ -122,15 +126,16 @@ class PriorController(serial.Serial):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         # self.std_mode = self.standard_mode()
+        self._write_lock = threading.Lock()
+        self._read_lock = threading.Lock()
+
         self.peripherals_info = self.initialization()
 
         self.acceleration = 99
-
-
         self.speed = 100
         self.resolution = 0.1
 
-        self.active_joystick = True
+        self._active_joystick = True
 
         self._x_position = None
         self._y_position = None
@@ -148,6 +153,10 @@ class PriorController(serial.Serial):
         self._home_coords = None
 
         self._resolution = None
+
+        self.set_x_direction(direction=X_DIRECTION)
+        self.set_y_direction(direction=Y_DIRECTION)
+
 
         # print(self.s_curve)
 
@@ -173,8 +182,10 @@ class PriorController(serial.Serial):
         pass
 
     def cmd_answer(self):
-        full_answer = self.read(100).decode().strip()
-        return full_answer.split("\r", 1)[0]
+        full_answer = self.readline().decode().strip()
+        return full_answer
+            # self.readline().decode().strip()
+        # return full_answer.split("\r", 1)[0]
 
     @property
     def s_curve(self):
@@ -196,7 +207,7 @@ class PriorController(serial.Serial):
     @property
     def acceleration(self):
         self.write_cmd(cmd="SAS")
-        self._acceleration = self.cmd_answer()
+        self._acceleration = int(self.cmd_answer())
         return self._acceleration
 
     @acceleration.setter
@@ -204,7 +215,7 @@ class PriorController(serial.Serial):
         self.write_cmd(cmd="SAS, {acceleration}".format(acceleration=value))
         # limit 0 - 100
         response = self.cmd_answer()
-        if int(response) == 0:
+        if response == '0':
             # self._acceleration = value
             Success(feature=sys._getframe().f_code.co_name, value=value)
 
@@ -223,7 +234,6 @@ class PriorController(serial.Serial):
         if int(response) == 0:
             Success(feature=sys._getframe().f_code.co_name, value=value)
         else:
-            print(response)
             print("error " + sys._getframe().f_code.co_name)
 
     def set_position_as_home(self, previous_coords=None):
@@ -264,7 +274,9 @@ class PriorController(serial.Serial):
         self._home_coords = (value[0], value[1])
 
     def write_cmd(self, cmd: str):
+
         self.write((cmd + "\r").encode())
+
 
     @property
     def step_size(self):
@@ -290,21 +302,29 @@ class PriorController(serial.Serial):
     @property
     def speed(self):
         self.write(("SMS" + "\r").encode())
-        speed = int(self.read(100).decode().strip())
-        if (speed > 0) and (speed <= 100):
+        response = self.cmd_answer()
+        speed = int(response)
+
+        if (speed >= 0) and (speed <= 100):
             self._speed = speed
             return speed
 
     @speed.setter
     def speed(self, value):
-        cmd = "SMS, {speed}\r".format(speed=value).encode()
-        self.write(cmd)
-        if self.read(100).decode().strip() == 'R':
-            pass
+        # https://stackoverflow.com/questions/74182624/two-threads-reading-writing-on-the-same-serial-port-at-the-same-time
+        cmd = "SMS, {speed}".format(speed=value)
+        self.write_cmd(cmd)
+
+        response = self.cmd_answer()
+        if response == '0':
+            Success(feature="speed", value=value)
+        else:
+            Error(feature=sys._getframe().f_code.co_name, response=response)
+
 
     @property
     def active_joystick(self) -> bool:
-        return self.active_joystick
+        return self._active_joystick
 
     def return2home(self):
         cmd = "M\r".encode()
@@ -314,13 +334,13 @@ class PriorController(serial.Serial):
 
     @property
     def coords(self) -> str:
-        self.write(("P" + "\r").encode())
-        pos_coords = self.read(100).decode().strip()
+        self.write_cmd("P")
+        pos_coords = self.cmd_answer()
         return pos_coords
 
     @coords.setter
     def coords(self, value: typing.Tuple[int]):
-        cmd = "G, {x}, {y}\r".format(x=value[0], y=value[1])
+        cmd = "G, {x}, {y}".format(x=value[0], y=value[1])
         self.write_cmd(cmd)
         response = self.cmd_answer()
         if response == 'R':
@@ -363,12 +383,12 @@ class PriorController(serial.Serial):
     @active_joystick.setter
     def active_joystick(self, value: bool) -> None:
         if value:
-            self.write(("J" + "\r").encode())
-            if self.read(100).decode() == 0:
+            self.write_cmd("J")
+            if self.cmd_answer() == 0:
                 self._active_joystick = True
         else:
-            self.write(("H" + "\r").encode())
-            if self.read(100).decode() == 0:
+            self.write_cmd("H")
+            if self.cmd_answer() == 0:
                 self._active_joystick = False
 
     def initialization(self):
@@ -378,17 +398,20 @@ class PriorController(serial.Serial):
         """
         self.write(("?" + "\r").encode())
         info = self.read(1000)
+        print(info)
 
         return info.decode('unicode-escape').encode('unicode-escape').decode()
 
     def emergency_stop(self):
-        self.write(("K" + "\r").encode())
-        response = self.read(100).decode().strip()
-        if response == 'R':
+        self.flushOutput()
+        self.write_cmd("K")
+        response = self.cmd_answer()
+
+        if response == 'R' or response == '':
             Success(feature="Emergency stop", value=None)
 
         else:
-            print("error")
+            Error(feature=sys._getframe().f_code.co_name, response=response)
 
     def stop_movement(self):
         self.write(("I" + "\r").encode())
@@ -403,13 +426,28 @@ class PriorController(serial.Serial):
         response = self.cmd_answer()
         if response == 'R':
             Success(feature="x position, y_position", value=("+" + str(x), "+" + str(y)))
-            print("Succes moving ({x}, {y}) steps".format(x=x, y=y))
         else:
             print("error" + response)
 
     def wait4available(self):
         while self.busy_controller:
             time.sleep(0.01)
+
+    def set_x_direction(self, direction):
+        self.write_cmd(cmd="XD, {}".format(direction))
+        response = self.cmd_answer()
+        if response == 0:
+            Success(feature="Direction", value=direction, axis="X")
+        else:
+            Error(feature=sys._getframe().f_code.co_name, response=response)
+
+    def set_y_direction(self, direction):
+        self.write_cmd(cmd="YD, {}".format(direction))
+        response = self.cmd_answer()
+        if response == 0:
+            Success(feature="Direction", value=direction, axis="Y")
+        else:
+            Error(feature=sys._getframe().f_code.co_name, response=response)
 
 
 def real_time_positions_demo():
@@ -427,6 +465,7 @@ def return2home_demo():
     prior.wait4available()
     print(prior.coords)
     prior.close()
+
 
 def set_new_home_demo():
     prior = PriorController(port="COM12", baudrate=9600, timeout=0.1)
@@ -446,15 +485,28 @@ def set_new_home_demo():
     prior.close()
 
 
+def set_new_speed_demo():
+    prior = PriorController(port="COM12", baudrate=9600, timeout=0.1)
+    prior.emergency_stop()
+    prior.set_index_stage()
+
+    prior.acceleration = 1
+    prior.speed = 70
+    prior.set_relative_position_steps(x=10000)
+    # print(prior.speed)
+    while prior.busy_controller:
+        print(prior.speed)
+        time.sleep(0.01)
+    # prior.set_relative_position_steps(x=10000)
+    # prior.wait4available()
+    # prior.acceleration = 100
+    #
+    # prior.speed = 100
+    # prior.set_index_stage()
+    prior.close()
+
+
 if __name__ == "__main__":
     # return2home_demo()
     # set_new_home_demo()
-
-    prior = PriorController(port="COM12", baudrate=9600, timeout=0.1)
-    prior.emergency_stop()
-    prior.speed = 10
-    prior.set_relative_position_steps(x=10000)
-    prior.wait4available()
-    prior.speed = 100
-    prior.set_relative_position_steps(x=-10000)
-    prior.close()
+    set_new_speed_demo()

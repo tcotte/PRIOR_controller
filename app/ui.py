@@ -1,18 +1,37 @@
 import sys
+import threading
 import typing
+from time import sleep
 
 import qdarkstyle
 import qtawesome as qta
 from PyQt5 import QtGui
-from PyQt5.QtCore import QSize, Qt
+from PyQt5.QtCore import QSize, Qt, QObject, pyqtSignal, QThread
 from PyQt5.QtGui import QFont, QKeyEvent
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QHBoxLayout, QVBoxLayout, QGridLayout, QLCDNumber, \
+from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QLCDNumber, \
     QLabel, QFrame, QSizePolicy, QLayout, QSpacerItem, QFormLayout
 from qtwidgets import AnimatedToggle
 from superqt import QLabeledSlider
 
 from app.go_to_windows import GoToXY, GoToZ
-from app.ui_utils import QHLine, AnimatedOnHoverButton, QVLine, TitleSectionLabel, FormLabel
+from app.ui_utils import QHLine, AnimatedOnHoverButton, TitleSectionLabel, FormLabel, LongClickButton
+from main import PriorController
+
+lock = threading.Lock()
+
+# def locked_command(command) -> None:
+#     lock = threading.Lock()
+#     lock.acquire(blocking=True)
+#     output = command
+#     lock.release()
+#     return co
+
+
+class Directions:
+    LEFT = 1
+    RIGHT = 2
+    UP = 3
+    DOWN = 4
 
 
 class DirectionalButtons(QWidget):
@@ -25,26 +44,26 @@ class DirectionalButtons(QWidget):
         self.only_two = only_two
 
         up_icon = qta.icon('ri.arrow-up-s-line')
-        self.up_button = QPushButton(up_icon, '')
+        self.up_button = LongClickButton(up_icon, '')
         self.up_button.setFixedSize(QSize(size_btn, size_btn))
         self.up_button.setIconSize(QSize(round(size_btn), round(size_btn)))
         self.up_button.setObjectName('up')
 
         down_icon = qta.icon('ri.arrow-down-s-line')
-        self.down_button = QPushButton(down_icon, '')
+        self.down_button = LongClickButton(down_icon, '')
         self.down_button.setFixedSize(QSize(size_btn, size_btn))
         self.down_button.setIconSize(QSize(round(size_btn), round(size_btn)))
         self.down_button.setObjectName('down')
 
         if not only_two:
             left_icon = qta.icon('ri.arrow-left-s-line')
-            self.left_button = QPushButton(left_icon, '')
+            self.left_button = LongClickButton(left_icon, '')
             self.left_button.setFixedSize(QSize(size_btn, size_btn))
             self.left_button.setIconSize(QSize(round(size_btn), round(size_btn)))
             self.left_button.setObjectName('left')
 
             right_icon = qta.icon('ri.arrow-right-s-line')
-            self.right_button = QPushButton(right_icon, '')
+            self.right_button = LongClickButton(right_icon, '')
             self.right_button.setFixedSize(QSize(size_btn, size_btn))
             self.right_button.setIconSize(QSize(round(size_btn), round(size_btn)))
             self.right_button.setObjectName('right')
@@ -132,6 +151,7 @@ class XYHandler(QWidget):
         # speed
         # acceleration
         self.main_window = parent
+        self.prior = self.main_window.prior
 
         # self.position_window = GoTo(x_position=None, y_position=None)
         self.xy_directions = DirectionalButtons(size_btn=50)
@@ -179,8 +199,41 @@ class XYHandler(QWidget):
         self.connect_actions()
         self.display()
 
+        # Construct
+        self.acceleration_slider.setValue(self.main_window.prior.acceleration)
+        self.speed_slider.setValue(self.main_window.prior.speed)
+
     def connect_actions(self) -> None:
         self.go_to_btn.clicked.connect(self.open_absolute_position_window)
+        # go to acceleration
+        self.acceleration_slider.valueChanged.connect(lambda value: setattr(self.prior, 'acceleration', value))
+
+        # self.speed_slider.valueChanged.connect(lambda value: setattr(self.prior, 'speed', value))
+        self.speed_slider.valueChanged.connect(self.change_speed)
+        self.home_btn.clicked.connect(self.prior.set_index_stage)
+
+        for i in [self.xy_directions.up_button, self.xy_directions.left_button, self.xy_directions.right_button,
+                  self.xy_directions.down_button]:
+            i.click.connect(self.click_xy)
+
+    def change_speed(self, value):
+        lock.acquire(blocking=True)
+        setattr(self.prior, 'speed', value)
+        lock.release()
+
+    def click_xy(self):
+        step = 50
+        direction = self.xy_directions.sender().objectName()
+        if getattr(Directions, direction.upper()) == 1:
+            self.prior.set_relative_position_steps(x=-step, y=0)
+        elif getattr(Directions, direction.upper()) == 2:
+            self.prior.set_relative_position_steps(x=step, y=0)
+        elif getattr(Directions, direction.upper()) == 3:
+            self.prior.set_relative_position_steps(x=0, y=step)
+        elif getattr(Directions, direction.upper()) == 4:
+            self.prior.set_relative_position_steps(x=0, y=-step)
+        else:
+            raise "The direction {} is not supported by this program".format(direction)
 
     def open_absolute_position_window(self) -> None:
         dlg = GoToXY(x_position=self.main_window.x, y_position=self.main_window.y)
@@ -189,7 +242,7 @@ class XYHandler(QWidget):
         if result == 0:
             print("quit")
         else:
-            print("ok")
+            self.prior.coords = (dlg.x_pos_sb.value(), dlg.y_pos_sb.value())
 
     def display(self):
         print("display")
@@ -266,18 +319,19 @@ class ZHandler(QWidget):
 
 
 class GeneralCommands(QWidget):
-    def __init__(self):
+    def __init__(self, parent=None):
         super().__init__()
+        self.main_window = parent
+        self.prior = self.main_window.prior
 
         layout = QVBoxLayout()
 
         form_widget = QWidget()
         form_layout = QFormLayout()
-        self.joystick_utiliation_cb = AnimatedToggle()
-        self.joystick_utiliation_cb.setFixedSize(QSize(70, 40))
+        self.joystick_utilisation_cb = AnimatedToggle()
+        self.joystick_utilisation_cb.setFixedSize(QSize(70, 40))
 
-
-        form_layout.addRow(FormLabel("Joystick utilisation"), self.joystick_utiliation_cb)
+        form_layout.addRow(FormLabel("Joystick utilisation"), self.joystick_utilisation_cb)
         form_widget.setLayout(form_layout)
 
         self.emergency_btn = AnimatedOnHoverButton("EMERGENCY STOP", font_color=QtGui.QColor(255, 0, 0),
@@ -289,6 +343,15 @@ class GeneralCommands(QWidget):
         layout.addWidget(self.emergency_btn, alignment=Qt.AlignBottom | Qt.AlignCenter)
 
         self.setLayout(layout)
+
+        self.connect_actions()
+
+        # Construct
+        self.joystick_utilisation_cb.setChecked(self.prior.active_joystick)
+
+    def connect_actions(self):
+        self.emergency_btn.clicked.connect(self.main_window.prior.emergency_stop)
+        self.joystick_utilisation_cb.stateChanged.connect(lambda value: setattr(self.prior, "active_joystick", value))
 
 
 class DisplayCurrentValues(QWidget):
@@ -347,7 +410,6 @@ class DisplayCurrentValues(QWidget):
     @z.setter
     def z(self, value: float) -> None:
         self._z = round(value)
-        print(self._z)
         self.z_dv.value = self._z
 
     def display(self):
@@ -465,12 +527,34 @@ class DisplayValue(QWidget):
         self.value_qlcd.display(str(self._value))
 
 
+class RealTimeCoordWorker(QObject):
+    coords = pyqtSignal(object)
+
+    def __init__(self, parent=None):
+        super().__init__()
+        # self.prior = parent.prior
+        self.parent = parent
+        self.delay_refresh = 0.5
+
+    def run(self):
+        """Long-running task."""
+        while True:
+            sleep(self.delay_refresh)
+            # print(self.prior.coords)
+            lock.acquire(blocking=True)
+            self.coords.emit(self.parent.prior.coords)
+            lock.release()
+        # self.finished.emit()
+
+
 class Window(QWidget):
     def __init__(self):
         super().__init__()
         self._x = None
         self._y = None
         self._z = None
+
+        self.prior = PriorController(port="COM12", baudrate=9600, timeout=0.1)
 
         layout = QVBoxLayout()
         control_layout = QHBoxLayout()
@@ -482,18 +566,55 @@ class Window(QWidget):
         self.display_values = DisplayCurrentValues()
 
         space_width = 60
-        control_layout.addItem(QSpacerItem(2*space_width, space_width, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        control_layout.addItem(QSpacerItem(2 * space_width, space_width, QSizePolicy.Minimum, QSizePolicy.Expanding))
         control_layout.addWidget(xy_widget)
         control_layout.addItem(QSpacerItem(space_width, space_width, QSizePolicy.Minimum, QSizePolicy.Expanding))
         control_layout.addWidget(z_widget)
         control_layout.addItem(QSpacerItem(space_width, space_width, QSizePolicy.Minimum, QSizePolicy.Expanding))
-        control_layout.addWidget(GeneralCommands())
-        control_layout.addItem(QSpacerItem(2*space_width, space_width, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        control_layout.addWidget(GeneralCommands(parent=self))
+        control_layout.addItem(QSpacerItem(2 * space_width, space_width, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         layout.addLayout(control_layout)
         layout.addWidget(self.display_values)
 
         self.setLayout(layout)
+
+        self.get_xy_values()
+
+
+    def get_xy_values(self):
+        self.thread = QThread()
+        # Step 3: Create a worker object
+        self.coord_worker = RealTimeCoordWorker(parent=self)
+        # Step 4: Move worker to the thread
+        self.coord_worker.moveToThread(self.thread)
+        # Step 5: Connect signals and slots
+        self.thread.started.connect(self.coord_worker.run)
+        # self.worker.finished.connect(self.thread.quit)
+        # self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.coord_worker.coords.connect(self.report_xyz_values)
+        # Step 6: Start the thread
+        self.thread.start()
+
+        # Final resets
+        # self.longRunningBtn.setEnabled(False)
+        # self.thread.finished.connect(
+        #     lambda: self.longRunningBtn.setEnabled(True)
+        # )
+        # self.thread.finished.connect(
+        #     lambda: self.stepLabel.setText("Long-Running Step: 0")
+        # )
+
+    def report_xyz_values(self, coords: str) -> None:
+        try:
+            self.x, self.y, self.z = [int(x) for x in coords.split(",")]
+        except:
+            print("error with report_xyz_values function / coords value = {}".format(coords))
+
+    def closeEvent(self, a0: QtGui.QCloseEvent) -> None:
+        self.prior.close()
+        self.thread.quit()
 
     @property
     def x(self) -> int:
@@ -527,9 +648,8 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt5'))
     window = Window()
-    window.x = 5000
-    window.y = 5000
-    window.z = 5000
-    # window.z = 12000000
+    # window.x = 5000
+    # window.y = 5000
+    # window.z = 5000
     window.show()
     app.exec_()

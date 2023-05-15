@@ -62,7 +62,7 @@ class GoToXY(QDialog):
         self.y_position = y_position
 
     def connect_actions(self) -> None:
-        self.button_box.accepted.connect(self.valid)
+        self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
 
     @property
@@ -83,8 +83,8 @@ class GoToXY(QDialog):
         self._y_position = 0 if value is None else value
         self.y_pos_sb.setValue(self._y_position)
 
-    def valid(self):
-        print("set to pos ({x}, {y})".format(x=self.x_pos_sb.value(), y=self.y_pos_sb.value()))
+    # def valid(self):
+    #     print("set to pos ({x}, {y})".format(x=self.x_pos_sb.value(), y=self.y_pos_sb.value()))
 
 
 class GoToZ(QDialog):
