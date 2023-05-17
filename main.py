@@ -10,8 +10,6 @@ X_DIRECTION = 1
 Y_DIRECTION = -1
 
 
-
-
 def decode(l):
     if isinstance(l, list):
         return [x.decode('utf-8') for x in l]
@@ -157,7 +155,6 @@ class PriorController(serial.Serial):
         self.set_x_direction(direction=X_DIRECTION)
         self.set_y_direction(direction=Y_DIRECTION)
 
-
         # print(self.s_curve)
 
     @property
@@ -184,7 +181,7 @@ class PriorController(serial.Serial):
     def cmd_answer(self):
         full_answer = self.readline().decode().strip()
         return full_answer
-            # self.readline().decode().strip()
+        # self.readline().decode().strip()
         # return full_answer.split("\r", 1)[0]
 
     @property
@@ -258,12 +255,14 @@ class PriorController(serial.Serial):
         as zero even with subsequent uses of Z and P, x , y command.
 
         """
+        ##### a chercher
         self.write_cmd(cmd="SIS")
-        if self.read(100).decode().strip() == 'R':
+        response = self.cmd_answer()
+        if response == 'R':
             self.home_coords = (0, 0)
             Success(feature="return to home", value=None)
         else:
-            print("error " + sys._getframe().f_code.co_name)
+            Error(feature=sys._getframe().f_code.co_name, response=response)
 
     @property
     def home_coords(self):
@@ -274,9 +273,7 @@ class PriorController(serial.Serial):
         self._home_coords = (value[0], value[1])
 
     def write_cmd(self, cmd: str):
-
         self.write((cmd + "\r").encode())
-
 
     @property
     def step_size(self):
@@ -320,7 +317,6 @@ class PriorController(serial.Serial):
             Success(feature="speed", value=value)
         else:
             Error(feature=sys._getframe().f_code.co_name, response=response)
-
 
     @property
     def active_joystick(self) -> bool:
@@ -422,12 +418,15 @@ class PriorController(serial.Serial):
             print("error" + response)
 
     def set_relative_position_steps(self, x: int = 0, y: int = 0) -> None:
+        if x < 0 or y < 0:
+            print("inverse")
+
         self.write_cmd(cmd="GR, {x_value}, {y_value}".format(x_value=x, y_value=y))
         response = self.cmd_answer()
         if response == 'R':
             Success(feature="x position, y_position", value=("+" + str(x), "+" + str(y)))
         else:
-            print("error" + response)
+            Error(feature=sys._getframe().f_code.co_name, response=response)
 
     def wait4available(self):
         while self.busy_controller:

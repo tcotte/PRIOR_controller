@@ -19,12 +19,20 @@ from main import PriorController
 
 lock = threading.Lock()
 
+#
 # def locked_command(command) -> None:
-#     lock = threading.Lock()
 #     lock.acquire(blocking=True)
-#     output = command
+#     command()
 #     lock.release()
-#     return co
+
+
+def locked_thread(function):
+    def wrapper(*args, **kwargs):
+        lock.acquire(blocking=True)
+        function(*args, **kwargs)
+        lock.release()
+
+    return wrapper
 
 
 class Directions:
@@ -205,35 +213,56 @@ class XYHandler(QWidget):
 
     def connect_actions(self) -> None:
         self.go_to_btn.clicked.connect(self.open_absolute_position_window)
-        # go to acceleration
-        self.acceleration_slider.valueChanged.connect(lambda value: setattr(self.prior, 'acceleration', value))
+        self.acceleration_slider.valueChanged.connect(self.change_acceleration)
 
-        # self.speed_slider.valueChanged.connect(lambda value: setattr(self.prior, 'speed', value))
+        # self.speed_slider.valueChanged.connect(lambda value: locked_thread(function=setattr(self.prior, 'speed', value)))
         self.speed_slider.valueChanged.connect(self.change_speed)
-        self.home_btn.clicked.connect(self.prior.set_index_stage)
+        self.home_btn.clicked.connect(self.go2home)
 
         for i in [self.xy_directions.up_button, self.xy_directions.left_button, self.xy_directions.right_button,
                   self.xy_directions.down_button]:
             i.click.connect(self.click_xy)
 
-    def change_speed(self, value):
+
+    def go2home(self):
         lock.acquire(blocking=True)
-        setattr(self.prior, 'speed', value)
+        self.prior.set_index_stage()
         lock.release()
+
+    @locked_thread
+    def change_speed(self, value):
+        setattr(self.prior, 'speed', value)
+
+    @locked_thread
+    def change_acceleration(self, value):
+        setattr(self.prior, 'acceleration', value)
 
     def click_xy(self):
         step = 50
         direction = self.xy_directions.sender().objectName()
         if getattr(Directions, direction.upper()) == 1:
-            self.prior.set_relative_position_steps(x=-step, y=0)
+            relative_position = [-step, 0]
+            # locked_command(self.prior.set_relative_position_steps(x=-step, y=0))
         elif getattr(Directions, direction.upper()) == 2:
-            self.prior.set_relative_position_steps(x=step, y=0)
+            relative_position = [step, 0]
+            # locked_command(self.prior.set_relative_position_steps(x=step, y=0))
         elif getattr(Directions, direction.upper()) == 3:
-            self.prior.set_relative_position_steps(x=0, y=step)
+            relative_position = [0, step]
+            # locked_command(self.prior.set_relative_position_steps(x=0, y=step))
+
         elif getattr(Directions, direction.upper()) == 4:
-            self.prior.set_relative_position_steps(x=0, y=-step)
+            relative_position = [0, -step]
+            # locked_command(self.prior.set_relative_position_steps(x=0, y=-step))
         else:
             raise "The direction {} is not supported by this program".format(direction)
+
+        self.go2relative_position(relative_position)
+
+
+    @locked_thread
+    def go2relative_position(self, position):
+        self.prior.set_relative_position_steps(*position)
+
 
     def open_absolute_position_window(self) -> None:
         dlg = GoToXY(x_position=self.main_window.x, y_position=self.main_window.y)
@@ -242,7 +271,12 @@ class XYHandler(QWidget):
         if result == 0:
             print("quit")
         else:
-            self.prior.coords = (dlg.x_pos_sb.value(), dlg.y_pos_sb.value())
+            self.set_absolute_coords((dlg.x_pos_sb.value(), dlg.y_pos_sb.value()))
+
+    @locked_thread
+    def set_absolute_coords(self, position: typing.Tuple) -> None:
+
+        setattr(self.prior, 'coords', position)
 
     def display(self):
         print("display")
@@ -534,7 +568,7 @@ class RealTimeCoordWorker(QObject):
         super().__init__()
         # self.prior = parent.prior
         self.parent = parent
-        self.delay_refresh = 0.5
+        self.delay_refresh = 0.2
 
     def run(self):
         """Long-running task."""
@@ -554,7 +588,7 @@ class Window(QWidget):
         self._y = None
         self._z = None
 
-        self.prior = PriorController(port="COM12", baudrate=9600, timeout=0.1)
+        self.prior = PriorController(port="COM12", baudrate=9600, timeout=0.2)
 
         layout = QVBoxLayout()
         control_layout = QHBoxLayout()
@@ -580,7 +614,6 @@ class Window(QWidget):
         self.setLayout(layout)
 
         self.get_xy_values()
-
 
     def get_xy_values(self):
         self.thread = QThread()
