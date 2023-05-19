@@ -1,9 +1,11 @@
 import functools
 from typing import Union
 
-from PyQt5 import QtCore, QtGui
-from PyQt5.QtCore import pyqtSignal
-from PyQt5.QtWidgets import QFrame, QPushButton, QLabel
+import qtawesome as qta
+from PyQt5 import QtGui, QtCore
+from PyQt5.QtCore import QSize, Qt, pyqtSignal
+from PyQt5.QtWidgets import QFrame, QLabel
+from PyQt5.QtWidgets import QPushButton, QApplication, QToolButton
 
 
 class QHLine(QFrame):
@@ -133,6 +135,7 @@ class FormLabel(QLabel):
 
 class LongClickButton(QPushButton):
     click = pyqtSignal()
+
     def __init__(self, *args, **kwargs):
         QPushButton.__init__(self, *args, **kwargs)
         self.auto_repeat_interval = 100
@@ -155,3 +158,107 @@ class LongClickButton(QPushButton):
             self.setAutoRepeatInterval(self.auto_repeat_interval)
         else:
             self.click.emit()
+
+
+class HideShowButton(QToolButton):
+    """
+    Custom eye button which indicates if a related object (that could be QGraphicsItem) is shown or hidden.
+    """
+    isclicked = pyqtSignal(bool)
+
+    def __init__(self):
+        super().__init__()
+        self._show = True  # show mode
+        self.display()
+
+        self.clicked.connect(self.on_clicked)
+
+    def on_clicked(self) -> None:
+        """
+        Change appearance on click (toggle hide/view displayed) and emit a signal
+        """
+        self.show = not self._show
+        self.isclicked.emit(self._show)
+
+    def display(self) -> None:
+        """
+        Change appearance : toggle hide/view displayed
+        :return:
+        """
+        if self._show:
+            eye_icon = qta.icon("fa5.eye", color="white")
+
+        else:
+            eye_icon = qta.icon("fa5.eye-slash", color="gray")
+
+        self.setIcon(eye_icon)
+        self.setStyleSheet("QToolButton{background-color:transparent;}")
+
+    @property
+    def show(self) -> bool:
+        return self._show
+
+    @show.setter
+    def show(self, value: bool):
+        self._show = value
+        self.display()
+
+
+class HoveredButton(QPushButton):
+    def __init__(self, qta_icon: str, first_color: str = "white", second_color: str = "#346792",
+                 q_size: QSize = QSize(30, 30), icon_factor: float = 1.5, parent=None):
+        """
+        Return button which is displaying a left arrow
+        """
+        super().__init__(parent)
+        self.setMouseTracking(True)
+        self.is_hover = False
+        self.setStyleSheet("background: None;")
+        self.setFixedSize(q_size)
+
+        self.qta_icon = qta_icon
+        self.first_color = first_color
+        self.second_color = second_color
+        self.icon_factor = icon_factor
+
+        icon = qta.icon(qta_icon,
+                        color_off=self.first_color,
+                        color_active=self.first_color,
+                        color=self.first_color,
+                        color_disabled=self.first_color,
+                        options=[{'scale_factor': self.icon_factor}])
+
+        self.setIcon(icon)
+
+        self.installEventFilter(self)
+
+    def enterEvent(self, event) -> None:
+        QApplication.setOverrideCursor(Qt.PointingHandCursor)
+        icon = qta.icon(self.qta_icon,
+                        color_off=self.second_color,
+                        color=self.second_color,
+                        color_active=self.second_color,
+                        color_disabled=self.second_color,
+                        options=[{'scale_factor': self.icon_factor}])
+        self.setIcon(icon)
+
+    def leaveEvent(self, event) -> None:
+        QApplication.setOverrideCursor(Qt.ArrowCursor)
+        icon = qta.icon(self.qta_icon,
+                        color_off=self.first_color,
+                        color=self.first_color,
+                        color_active=self.first_color,
+                        color_disabled=self.first_color,
+                        options=[{'scale_factor': self.icon_factor}])
+        self.setIcon(icon)
+
+    def mouseReleaseEvent(self, event, *args, **kwargs):
+        icon = qta.icon(self.qta_icon,
+                        color_off=self.first_color,
+                        color=self.second_color,
+                        color_active=self.second_color,
+                        color_disabled=self.second_color,
+                        options=[{'scale_factor': self.icon_factor}])
+        self.setIcon(icon)
+        QApplication.restoreOverrideCursor()
+        super(HoveredButton, self).mouseReleaseEvent(event)

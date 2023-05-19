@@ -1,0 +1,8 @@
+- name: cc
+  x: 8
+  y: 0
+  z: 0
+- name: az
+  x: 10000
+  y: 0
+  z: 0
