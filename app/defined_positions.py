@@ -15,7 +15,6 @@ from app.notifications import Warn
 from app.ui_utils import QHLine, HideShowButton, HoveredButton
 
 
-
 class PositionObject:
     def __init__(self, name: str, x: int, y: int, z: int):
         self._name = name
@@ -176,8 +175,6 @@ class PositionManager(QDialog):
             ''')
         self.list_widget.setSelectionMode(QAbstractItemView.SingleSelection)
 
-
-
         self.resize(400, 500)
 
         plus_icon = qta.icon('mdi6.plus-circle')
@@ -235,8 +232,6 @@ class PositionManager(QDialog):
         with open(filename, 'w') as file:
             yaml.dump(data, file)
 
-
-
     def toggle_edition_access(self) -> None:
         if len(self.list_widget.selectedItems()) > 0:
             self.edit_btn.setEnabled(True)
@@ -280,7 +275,7 @@ class PositionManager(QDialog):
             item_widget = self.list_widget.itemWidget(item)
             element_list.append(item_widget.position.name)
         return element_list
-    
+
     def get_positions(self) -> List[PositionObject]:
         """
         Retrieve all elements in the widgets disposed in self.list_widget (QListWidget)
@@ -319,8 +314,6 @@ class PositionManager(QDialog):
             if item_widget.position.name == value:
                 self.list_widget.takeItem(i)
                 break
-
-
 
 
 class PositionEditDialog(QDialog):
@@ -409,13 +402,10 @@ if __name__ == "__main__":
     #     PositionObject(name="Sample 3", x=200, y=300, z=3000)
     # ]
 
-
-
     with open(r"C:\Users\tristan_cotte\PycharmProjects\PRIOR_controller\positions_cfg.yaml", 'r') as file:
         positions = yaml.safe_load(file)
 
     list_pos = [PositionObject(**pos) for pos in positions]
-
 
     window = PositionManager(init_elements=list_pos)
     window.show()
