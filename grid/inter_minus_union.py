@@ -11,11 +11,11 @@ def get_precedent_zone(last_box, current_box):
 
         #position down
         if bbox1[0] == bbox2[0]:
-                return [last_box[0], last_box[1], last_box[2], current_box[1]]
+                return last_box[0], last_box[1], last_box[2], current_box[1]
 
         #position right
         elif bbox1[1] == bbox2[1]:
-                return [last_box[0], last_box[1], current_box[0], last_box[3]]
+                return last_box[0], last_box[1], current_box[0], last_box[3]-last_box[1]
 
 
 if __name__ == "__main__":

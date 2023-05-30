@@ -164,10 +164,15 @@ class PriorController(serial.Serial):
 
         self.write_cmd("$")
         answer = self.cmd_answer()
+        print(answer)
         if len(answer) >= 1:
-            if int(answer) == 3:
+            if answer == '3':
                 return True
-            elif int(answer) == 0:
+            elif answer == '0':
+                return False
+            elif answer == 'R':
+                return False
+            elif answer == '3\rR':
                 return False
             else:
                 raise ("New value for busy function : {value}".format(value=answer))
@@ -179,7 +184,9 @@ class PriorController(serial.Serial):
         pass
 
     def cmd_answer(self):
-        full_answer = self.readline().decode().strip()
+        # full_answer = self.readline().decode().strip()
+        full_answer = self.read_until(b'\r').decode().strip()
+        print(full_answer)
         return full_answer
         # self.readline().decode().strip()
         # return full_answer.split("\r", 1)[0]
