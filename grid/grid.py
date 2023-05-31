@@ -7,7 +7,7 @@ from main import PriorController
 
 APP_SIZE = (700, 500)
 GRID = (12000, 8000)  # width, height -> 1 pixel equals 10 µm
-IMAGE_SIZE = (500, 500)  # width, height -> camera image size
+IMAGE_SIZE = (5, 5)  # width, height -> camera image size
 RATIO = 10  # 1 pixel equals 10 µm
 
 
@@ -113,7 +113,6 @@ class GridMovement:
         self.change_direction = False
 
     def move(self, to: Tuple[int, int]):
-
         if (self.x, self.y) == to:
             print("[SUCCESS] The position {} was reached".format(to))
             self.stop()
@@ -123,8 +122,8 @@ class GridMovement:
 
         if self._course == Course().V_RIGHT:
             if self._direction == 1:  # DOWN
-                if self.y + IMAGE_SIZE[1] == self.y_lim[0]:
-                    print("reach limit y")
+                if self.y + IMAGE_SIZE[1] >= self.y_lim[1]:
+
                     self.direction = 2
                 else:
                     self.y += self.velocity
@@ -225,6 +224,23 @@ class GridMovement:
 
     def stop(self):
         self._direction = 0
+
+    def get_grid(self, start_pt: Tuple[int, int], final_pt: Tuple[int, int], step: int):
+        self.velocity = step
+        position_reached = False
+        grid = []
+        x, y = start_pt
+
+        while not position_reached:
+            if (x, y) == final_pt:
+                position_reached = True
+            else:
+                x, y = self.move(to=final_pt)
+                grid.append([x, y])
+        return grid
+
+
+
 
 
 def position_done(last_bbox, current_bbox):
