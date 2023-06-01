@@ -6,8 +6,9 @@ from threading import Thread
 from main import PriorController
 
 APP_SIZE = (700, 500)
-GRID = (12000, 8000)  # width, height -> 1 pixel equals 10 µm
-IMAGE_SIZE = (5, 5)  # width, height -> camera image size
+GRID = (200, 200)  # width, height -> 1 pixel equals 10 µm
+#IMAGE_SIZE = (5, 5)  # width, height -> camera image size
+IMAGE_SIZE = (100, 100)  # width, height -> camera image size
 RATIO = 10  # 1 pixel equals 10 µm
 
 
@@ -22,9 +23,9 @@ class GridMovement:
     def __init__(self, x: int, y: int, velocity: int, x_lim: Union[Tuple[int, int], None] = None,
                  y_lim: Union[Tuple[int, int], None] = None):
         if y_lim is None:
-            y_lim = [0, GRID[1]*RATIO]
+            y_lim = [0, GRID[1] * RATIO]
         if x_lim is None:
-            x_lim = [0, GRID[0]*RATIO]
+            x_lim = [0, GRID[0] * RATIO]
 
         self.velocity = velocity
         self._x = x
@@ -231,6 +232,8 @@ class GridMovement:
         grid = []
         x, y = start_pt
 
+        grid.append(start_pt)
+
         while not position_reached:
             if (x, y) == final_pt:
                 position_reached = True
@@ -238,9 +241,6 @@ class GridMovement:
                 x, y = self.move(to=final_pt)
                 grid.append([x, y])
         return grid
-
-
-
 
 
 def position_done(last_bbox, current_bbox):
@@ -320,7 +320,6 @@ class Game():
 
         pygame.quit()
 
-
     ### Define GUI events here
 
     def quit_button_event(self):
@@ -328,6 +327,7 @@ class Game():
         print("Quit-button pressed!")
         self.gui_running = False
         self.engine_running = False
+
 
 def get_prior_coords(prior):
     print(prior.coords)
@@ -373,13 +373,11 @@ if __name__ == "__main__":
             if event.type == pygame.QUIT:  # Checks if the red button in the corner of the window is clicked
                 run = False  # Ends the game loop
 
-
-
         # current_position = (x, y, x + IMAGE_SIZE[0], y + IMAGE_SIZE[1])
         answer = prior.coords
         try:
             x, y, _ = [int(x) for x in answer.split(",")]
-            x, y = round(x/10), round(y/10)
+            x, y = round(x / 10), round(y / 10)
         except:
             print("ERROR {}".format(answer))
         current_position = (x, y, x + IMAGE_SIZE[0], y + IMAGE_SIZE[1])

@@ -186,7 +186,6 @@ class PriorController(serial.Serial):
     def cmd_answer(self):
         # full_answer = self.readline().decode().strip()
         full_answer = self.read_until(b'\r').decode().strip()
-        print(full_answer)
         return full_answer
         # self.readline().decode().strip()
         # return full_answer.split("\r", 1)[0]
@@ -355,8 +354,14 @@ class PriorController(serial.Serial):
     @property
     def x_position(self) -> int:
         self.write(("PX" + "\r").encode())
-        x_position = self.read(100).decode().strip()
-        return int(x_position.strip())
+        x_position = self.cmd_answer()
+        try:
+            return int(x_position.strip())
+        except:
+            if x_position == "0,0,0":
+                return 0
+            else:
+                Error(feature=sys._getframe().f_code.co_name, response=x_position)
 
     @x_position.setter
     def x_position(self, value: int):
@@ -371,8 +376,14 @@ class PriorController(serial.Serial):
     @property
     def y_position(self) -> int:
         self.write(("PY" + "\r").encode())
-        y_position = self.read(100).decode()
-        return int(y_position.strip())
+        y_position = self.cmd_answer()
+        try:
+            return int(y_position.strip())
+        except:
+            if y_position == "0,0,0":
+                return 0
+            else:
+                Error(feature=sys._getframe().f_code.co_name, response=y_position)
 
     @y_position.setter
     def y_position(self, value: int):
