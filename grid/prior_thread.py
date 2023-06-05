@@ -2,28 +2,50 @@ from time import sleep
 from threading import Thread, Event
 
 # custom thread class
-from app.ui import locked_thread
+from app.ui import locked_thread, lock
 from main import PriorController
 
 
 class RefreshPriorCoordsThread(Thread):
-    def __init__(self, prior_device, event, period: float = 0.2):
+    def __init__(self, prior_device, event, period: float = 0.3):
         super().__init__()
         self.prior = prior_device
-        self.coords = [self.prior.x_position, self.prior.y_position]
+        self.coords = self.get_coords()
         self.stopped = event
         self.period = period
+        self.running = True
 
     # override the run function
     def run(self):
-        while not self.stopped.wait(self.period):
+        while self.running:
             # display a message
             # self.coords = self.get_coords()
-            self.coords = [self.prior.x_position, self.prior.y_position]
+            # self.coords = [self.prior.x_position, self.prior.y_position]
+            sleep(self.period)
+            self.coords = self.get_coords()
+            # print("run")
+            # print([self.prior.x_position, self.prior.y_position])
 
-    @locked_thread
+    def stop(self):
+        self.running = False
+
+
     def get_coords(self):
-        return [self.prior.x_position, self.prior.y_position]
+        lock.acquire(blocking=True)
+        response_coords = self.prior.coords
+        # print("get coords")
+        # print(response_coords)
+        lock.release()
+        try:
+            return [int(x) for x in response_coords.split(",")]
+
+        except:
+            print("error with report_xyz_values function / coords value = {}".format(response_coords))
+            return None, None,  None
+
+
+
+        # return [self.prior.x_position, self.prior.y_position]
 
 
 if __name__ == "__main__":

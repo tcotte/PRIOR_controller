@@ -164,7 +164,6 @@ class PriorController(serial.Serial):
 
         self.write_cmd("$")
         answer = self.cmd_answer()
-        print(answer)
         if len(answer) >= 1:
             if answer == '3':
                 return True
@@ -186,6 +185,7 @@ class PriorController(serial.Serial):
     def cmd_answer(self):
         # full_answer = self.readline().decode().strip()
         full_answer = self.read_until(b'\r').decode().strip()
+
         return full_answer
         # self.readline().decode().strip()
         # return full_answer.split("\r", 1)[0]
@@ -367,7 +367,7 @@ class PriorController(serial.Serial):
     def x_position(self, value: int):
         cmd = "G, {x}, {y}\r".format(x=value, y=self.y_position).encode()
         self.write(cmd)
-        if self.read(100).decode().strip() == 'R':
+        if self.cmd_answer() == 'R':
             Success(feature="position", axis=0, value=value)
         else:
             print("Error")
@@ -389,10 +389,10 @@ class PriorController(serial.Serial):
     def y_position(self, value: int):
         cmd = "G, {x}, {y}\r".format(x=self.x_position, y=value).encode()
         self.write(cmd)
-        if self.read(100).decode().strip() == 'R':
-            pass
-        # if self.read(100).decode().strip() == 0:
-        #     self._y_position = int(value)
+        if self.cmd_answer() == 'R':
+            Success(feature="position", axis=1, value=value)
+        else:
+            print("Error")
 
     @active_joystick.setter
     def active_joystick(self, value: bool) -> None:
@@ -453,7 +453,7 @@ class PriorController(serial.Serial):
     def set_x_direction(self, direction):
         self.write_cmd(cmd="XD, {}".format(direction))
         response = self.cmd_answer()
-        if response == 0:
+        if response == '0':
             Success(feature="Direction", value=direction, axis="X")
         else:
             Error(feature=sys._getframe().f_code.co_name, response=response)
@@ -461,7 +461,7 @@ class PriorController(serial.Serial):
     def set_y_direction(self, direction):
         self.write_cmd(cmd="YD, {}".format(direction))
         response = self.cmd_answer()
-        if response == 0:
+        if response == '0':
             Success(feature="Direction", value=direction, axis="Y")
         else:
             Error(feature=sys._getframe().f_code.co_name, response=response)

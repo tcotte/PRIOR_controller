@@ -20,12 +20,13 @@ class Course:
 
 
 class GridMovement:
-    def __init__(self, x: int, y: int, velocity: int, x_lim: Union[Tuple[int, int], None] = None,
+    def __init__(self, x: int, y: int, velocity: int, ratio: int = 1, x_lim: Union[Tuple[int, int], None] = None,
                  y_lim: Union[Tuple[int, int], None] = None):
+        self.ratio = ratio
         if y_lim is None:
-            y_lim = [0, GRID[1] * RATIO]
+            y_lim = [0, GRID[1] * self.ratio]
         if x_lim is None:
-            x_lim = [0, GRID[0] * RATIO]
+            x_lim = [0, GRID[0] * self.ratio]
 
         self.velocity = velocity
         self._x = x
