@@ -1,7 +1,5 @@
 from time import sleep
 from threading import Thread, Event
-
-# custom thread class
 from app.ui import locked_thread, lock
 from main import PriorController
 
@@ -29,7 +27,7 @@ class RefreshPriorCoordsThread(Thread):
     def stop(self):
         self.running = False
 
-
+    # @locked_thread
     def get_coords(self):
         lock.acquire(blocking=True)
         response_coords = self.prior.coords
@@ -40,8 +38,9 @@ class RefreshPriorCoordsThread(Thread):
             return [int(x) for x in response_coords.split(",")]
 
         except:
+            # if we raise an error, we return the previous coordinates value
             print("error with report_xyz_values function / coords value = {}".format(response_coords))
-            return None, None,  None
+            return self.coords
 
 
 

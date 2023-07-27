@@ -128,7 +128,7 @@ class GoToZ(QDialog):
         self.z_position = z_position
 
     def connect_actions(self) -> None:
-        self.button_box.accepted.connect(self.valid)
+        self.button_box.accepted.connect(self.accept)
         self.button_box.rejected.connect(self.reject)
 
     @property
@@ -136,7 +136,7 @@ class GoToZ(QDialog):
         return self._z_position
 
     @z_position.setter
-    def z_position(self, value: Union[int, None]):
+    def z_position(self, value: Union[int, None]) -> None:
         self._z_position = 0 if value is None else value
         self.z_pos_sb.setValue(self._z_position)
 

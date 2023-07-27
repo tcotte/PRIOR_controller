@@ -290,6 +290,7 @@ class ZHandler(QWidget):
         # speed
         # acceleration
         self.main_window = parent
+        self.prior = self.main_window.prior
 
         title_label = TitleSectionLabel("Z Axis")
 
@@ -341,12 +342,18 @@ class ZHandler(QWidget):
 
     def open_absolute_position_window(self) -> None:
         dlg = GoToZ(z_position=self.main_window.z)
+
         result = dlg.exec_()
 
         if result == 0:
             print("quit")
         else:
-            print("ok")
+            self.set_absolute_coords(dlg.z_pos_sb.value())
+
+    @locked_thread
+    def set_absolute_coords(self, position: typing.Tuple) -> None:
+
+        setattr(self.prior.z_controller, 'z_position', position)
 
     def display(self):
         pass

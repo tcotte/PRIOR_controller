@@ -1,19 +1,15 @@
+import threading
 import time
-
-import numpy as np
-import pygame
-import typing
 from asyncio import Event
 
+import numpy as np
 import pygame
 import serial
 from pygame import QUIT
 from pygame.locals import RESIZABLE, Rect
 
-from app.ui import locked_thread, lock
 from grid.grid_movement import GridMovement, Course
 from grid.prior_thread import RefreshPriorCoordsThread
-from grid.test_grid import set_absolute_coords
 from main import PriorController
 
 APP_SIZE = (700, 500)
@@ -57,7 +53,6 @@ class Sprite:
         # self.image0 = self.image.copy()
 
     def set_pos(self, pos):
-        print(pos)
         if None not in pos:
             self.position = np.array(pos, dtype=float)
             self.rect.left = pos[0]
@@ -146,7 +141,7 @@ class App:
 
     def run(self):
         while self.running:
-            pygame.time.delay(100)
+            pygame.time.delay(500)
             for event in pygame.event.get():
                 self.do(event)
 
@@ -199,7 +194,9 @@ class App:
 
 
 if __name__ == '__main__':
-    prior = PriorController(port="COM13", baudrate=9600, timeout=0.1)
+    lock = threading.Lock()
+
+    prior = PriorController(port="COM13", baudrate=9600, timeout=0.05)
     app = App('Motorized microscope')
 
 
@@ -207,7 +204,22 @@ if __name__ == '__main__':
     app.add(prior_visualisation)
 
     # lock.acquire(blocking=True)
-    prior.set_relative_position_steps(2000, 2000)
+    # prior.set_index_stage()
+    # lock.release()
+
+    x, y = 0, 0
+    vel = 5
+    movement = GridMovement(x, y, vel, x_lim=(0, GRID[0]), y_lim=(0, round(50000/RATIO)), ratio=RATIO)
+    movement.course = Course().V_RIGHT
+
+    grid = movement.get_grid(start_pt=(x, y), final_pt=(600, 0), step=5)
+
+    # lock.acquire(blocking=True)
+    # for i in grid[1:]:
+    #     lock.acquire(blocking=True)
+    #     prior.coords = i
+    #     lock.release()
+    #     time.sleep(1000)
     # # lock.release()
     # #
     # lock.acquire(blocking=True)
@@ -226,11 +238,11 @@ if __name__ == '__main__':
     # grid = movement.get_grid(start_pt=(x, y), final_pt=(600, 0), step=5)
     # print(grid)
     # # #
-    # for pos in grid:
-    #     lock.acquire(blocking=True)
-    #     prior.coords = (pos[0]*RATIO, pos[1]*RATIO)
-    #     lock.release()
-    #     time.sleep(10)
+    for pos in grid:
+        lock.acquire(blocking=True)
+        prior.coords = (pos[0]*RATIO, pos[1]*RATIO)
+        lock.release()
+        time.sleep(1)
 
 
 

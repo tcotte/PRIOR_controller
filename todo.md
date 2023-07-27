@@ -50,3 +50,15 @@ jeudi : reunion avec IDEA pour presenter le modèle IA : 0.2
         developpement de l'application qui permet de détecter le light_controller
 
 vendredi : développement de l'ui pour la gestion xy du microscope
+
+
+
+
+#########
+TODO
+
+- Z est monté à l'envers
+- Pouvoir setter une position de home pour XY et Z (dans command general)
+- S'interfacer avec la caméra
+- Systeme de grille
+- Gestion du focus avec l'axe Z

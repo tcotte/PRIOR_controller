@@ -6,8 +6,8 @@ import typing
 
 import serial
 
-X_DIRECTION = 1
-Y_DIRECTION = -1
+X_DIRECTION = -1
+Y_DIRECTION = 1
 
 
 def decode(l):
@@ -112,6 +112,35 @@ class Error:
         else:
             print("[ERROR] : {feature} / {response}".format(feature=self.feature, response="Empty response message"))
 
+class ZAxis():
+    def __init__(self, parent):
+        self.prior_controller = parent
+
+        self._z_position = None
+
+    @property
+    def z_position(self) -> int:
+        self.prior_controller.write(("PZ" + "\r").encode())
+        z_position = self.prior_controller.cmd_answer()
+        try:
+            return int(z_position.strip())
+        except:
+            if z_position == "0,0,0":
+                return 0
+            else:
+                Error(feature=sys._getframe().f_code.co_name, response=z_position)
+
+    @z_position.setter
+    def z_position(self, value: int):
+        cmd = "PZ, {z}\r".format(z=value).encode()
+        self.prior_controller.write(cmd)
+
+        answer = self.prior_controller.cmd_answer()
+        if answer == '0':
+            Success(feature="position", axis=0, value=value)
+        else:
+            Error(feature=sys._getframe().f_code.co_name, response=answer)
+
 
 class PriorController(serial.Serial):
     """
@@ -155,6 +184,8 @@ class PriorController(serial.Serial):
         self.set_x_direction(direction=X_DIRECTION)
         self.set_y_direction(direction=Y_DIRECTION)
 
+        self.z_controller = ZAxis(parent=self)
+
         # print(self.s_curve)
 
     @property
@@ -185,6 +216,7 @@ class PriorController(serial.Serial):
     def cmd_answer(self):
         # full_answer = self.readline().decode().strip()
         full_answer = self.read_until(b'\r').decode().strip()
+        print(full_answer)
 
         return full_answer
         # self.readline().decode().strip()
@@ -485,10 +517,10 @@ def return2home_demo():
 
 
 def set_new_home_demo():
-    prior = PriorController(port="COM12", baudrate=9600, timeout=0.1)
+    prior = PriorController(port="COM13", baudrate=9600, timeout=0.1)
     prior.set_index_stage()
     prior.wait4available()
-    prior.coords = (10000, -10000)
+    prior.coords = (10000, 10000)
     prior.wait4available()
     print("X, Y, Z POSITIONS : {coords}".format(coords=prior.coords))
     prior.set_position_as_home(previous_coords=(prior.x_position, prior.y_position))
@@ -525,5 +557,5 @@ def set_new_speed_demo():
 
 if __name__ == "__main__":
     # return2home_demo()
-    # set_new_home_demo()
-    set_new_speed_demo()
+    set_new_home_demo()
+    # set_new_speed_demo()
