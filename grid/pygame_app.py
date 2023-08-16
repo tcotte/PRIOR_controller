@@ -1,5 +1,6 @@
 import threading
 import time
+import typing
 from asyncio import Event
 
 import numpy as np
@@ -25,7 +26,6 @@ class Sprite:
         self.parent = None
         self.size = size
 
-
         # self.velocity = np.array([1.5, 0.5], dtype=float)
 
         self.angle = 0
@@ -40,9 +40,8 @@ class Sprite:
         #         self.rect.size = self.image.get_size()
         # else:
 
-
         stop_flag = Event()
-        self.thread = RefreshPriorCoordsThread(prior_device=prior_controller, event=stop_flag)
+        self.thread = RefreshPriorCoordsThread(prior_device=prior_controller, event=stop_flag, period=0.5)
         self.thread.start()
 
         self.position = self.get_position()
@@ -57,6 +56,7 @@ class Sprite:
             self.position = np.array(pos, dtype=float)
             self.rect.left = pos[0]
             self.rect.top = pos[1]
+
     #
     # def set_angle(self, angle):
     #     self.angle = angle
@@ -106,9 +106,14 @@ class Sprite:
 
 
 class App:
-    def __init__(self, caption='Pygame'):
+    def __init__(self, caption: str, prior: serial, grid: typing.List):
+
         pygame.init()
         pygame.display.set_caption(caption)
+
+        self.prior = prior
+        self.grid = grid
+
         self.flags = RESIZABLE
         # self.flags = []
         self.size = GRID
@@ -129,6 +134,9 @@ class App:
 
         # pygame.time.set_timer(REFRESH_PRIOR_POSITION, 100)
 
+        self.prior_visualisation = Sprite(prior_controller=self.prior, size=IMAGE_SIZE)
+        self.add(self.prior_visualisation)
+
     def load_bg_game(self):
         self.image = pygame.Surface(self.size)
         self.image.fill(self.bg_color)
@@ -141,9 +149,17 @@ class App:
 
     def run(self):
         while self.running:
-            pygame.time.delay(500)
+            pygame.time.delay(1000)
             for event in pygame.event.get():
                 self.do(event)
+
+
+
+            self.grid.pop(0)
+            pos = self.grid[0]
+            print("############### start ############")
+            self.prior.coords = (pos[0] * RATIO, pos[1] * RATIO)
+
 
             self.update()
             self.draw()
@@ -158,15 +174,17 @@ class App:
 
     def do(self, event):
         if event.type == QUIT:
+
             self.running = False
             for obj in self.objects:
-
                 self.objects.remove(obj)
                 del obj
-            # self.thread.stop()
+
+            self.prior_visualisation.thread.stop()
             pygame.quit()
 
         # elif event.type == REFRESH_PRIOR_POSITION:
+        # print("refresh")
         #     x_pos, y_pos, _ = self.thread.coords
         #     if x_pos is not None:
         #         x_pos = round(float(x_pos) / RATIO)
@@ -196,12 +214,9 @@ class App:
 if __name__ == '__main__':
     lock = threading.Lock()
 
-    prior = PriorController(port="COM13", baudrate=9600, timeout=0.05)
-    app = App('Motorized microscope')
+    prior = PriorController(port="COM12", baudrate=9600, timeout=0.2)
+    prior.return2home()
 
-
-    prior_visualisation = Sprite(prior_controller=prior, size=IMAGE_SIZE)
-    app.add(prior_visualisation)
 
     # lock.acquire(blocking=True)
     # prior.set_index_stage()
@@ -209,10 +224,12 @@ if __name__ == '__main__':
 
     x, y = 0, 0
     vel = 5
-    movement = GridMovement(x, y, vel, x_lim=(0, GRID[0]), y_lim=(0, round(50000/RATIO)), ratio=RATIO)
+    movement = GridMovement(x, y, vel, x_lim=(0, GRID[0]), y_lim=(0, round(50000 / RATIO)), ratio=RATIO)
     movement.course = Course().V_RIGHT
 
-    grid = movement.get_grid(start_pt=(x, y), final_pt=(600, 0), step=5)
+    grid = movement.get_grid(start_pt=(x, y), final_pt=(600, 0), step=50)
+
+    app = App('Motorized microscope', prior, grid)
 
     # lock.acquire(blocking=True)
     # for i in grid[1:]:
@@ -238,19 +255,16 @@ if __name__ == '__main__':
     # grid = movement.get_grid(start_pt=(x, y), final_pt=(600, 0), step=5)
     # print(grid)
     # # #
-    for pos in grid:
-        lock.acquire(blocking=True)
-        prior.coords = (pos[0]*RATIO, pos[1]*RATIO)
-        lock.release()
-        time.sleep(1)
 
 
 
-    # ship = Sprite('spaceship.png', size=(100, 50), pos=(300, 200))
-    # app.add(ship)
-    # app.add(Sprite('asteroid.png', size=(100, 100), pos=(100, 300)))
-    # app.add(Sprite('asteroid.png', size=(150, 150), pos=(400, 100)))
-    #
-    # app.add_cmd(K_a, 'print(123)')
-    # app.add_cmd(K_b, "self.load_image('space.png')")
+        # time.sleep(1)
+
     app.run()
+
+    # time.sleep(2)
+    # for pos in grid[1:10]:
+    #     print("############### start ############")
+    #     prior.coords = (pos[0] * RATIO, pos[1] * RATIO)
+    #     app.update()
+    #     print("############### end ############")

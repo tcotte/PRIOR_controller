@@ -16,11 +16,12 @@ class RefreshPriorCoordsThread(Thread):
     # override the run function
     def run(self):
         while self.running:
-            # display a message
-            # self.coords = self.get_coords()
-            # self.coords = [self.prior.x_position, self.prior.y_position]
-            sleep(self.period)
-            self.coords = self.get_coords()
+            if not self.prior.busy:
+                # display a message
+                # self.coords = self.get_coords()
+                # self.coords = [self.prior.x_position, self.prior.y_position]
+                sleep(self.period)
+                self.coords = self.get_coords()
             # print("run")
             # print([self.prior.x_position, self.prior.y_position])
 
@@ -48,7 +49,7 @@ class RefreshPriorCoordsThread(Thread):
 
 
 if __name__ == "__main__":
-    prior = PriorController(port="COM13", baudrate=9600, timeout=0.1)
+    prior = PriorController(port="COM13", baudrate=9600, timeout=0.05)
     # prior.coords = (10000, 5000)
     prior.set_index_stage()
     # create the thread

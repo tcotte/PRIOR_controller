@@ -30,7 +30,7 @@ if __name__ == "__main__":
     pos_grid = 0
     print(grid)
 
-    prior = PriorController(port="COM13", baudrate=9600, timeout=0.1)
+    prior = PriorController(port="COM12", baudrate=9600, timeout=0.1)
     prior.coords = grid[0]
     prior.wait4available()
 

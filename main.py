@@ -6,7 +6,7 @@ import typing
 
 import serial
 
-X_DIRECTION = -1
+X_DIRECTION = 1
 Y_DIRECTION = 1
 
 
@@ -18,7 +18,7 @@ def decode(l):
 
 
 class Success:
-    def __init__(self, feature: str, value: typing.Union[int, float, None, typing.Tuple],
+    def __init__(self, feature: str, value: typing.Union[int, float, None, typing.Tuple]= None,
                  axis: typing.Union[None, str, int] = None):
         self.feature = feature
         self.value = value
@@ -26,7 +26,13 @@ class Success:
         self.axis = axis
         if axis is not None:
             if isinstance(axis, int):
-                self.axis = "x" if axis == 0 else "y"
+                if axis == 0:
+                    self.axis = "X"
+                elif axis == 1:
+                    self.axis = "Y"
+                else:
+                    self.axis = "Z"
+
             else:
                 self.axis = axis
 
@@ -112,15 +118,65 @@ class Error:
         else:
             print("[ERROR] : {feature} / {response}".format(feature=self.feature, response="Empty response message"))
 
-class ZAxis():
+
+class ZAxis:
     def __init__(self, parent):
         self.prior_controller = parent
 
         self._z_position = None
+        self.speed = 100
+        self.acceleration = 70
+
+    @property
+    def speed(self):
+        self.prior_controller.write_cmd(cmd="SMZ")
+        answer = self.prior_controller.cmd_answer()
+        try:
+            answer = int(answer)
+        except:
+            Error(feature=sys._getframe().f_code.co_name, response=answer)
+        assert 4 <= answer <= 100, "Speed value is not in range [4 - 100]"
+        return answer
+
+    @speed.setter
+    def speed(self, value: int):
+        assert 4 <= value <= 100, "Speed value should to be in range [4 - 100]"
+        cmd = "SMZ, {z}".format(z=value)
+        self.prior_controller.write_cmd(cmd)
+
+        answer = self.prior_controller.cmd_answer()
+        if answer == "0":
+            Success(feature=sys._getframe().f_code.co_name, axis=2, value=value)
+        else:
+            Error(feature=sys._getframe().f_code.co_name, response=answer)
+
+    @property
+    def acceleration(self):
+        self.prior_controller.write_cmd(cmd="SAZ")
+        answer = self.prior_controller.cmd_answer()
+        try:
+            answer = int(answer)
+        except:
+            Error(feature=sys._getframe().f_code.co_name, response=answer)
+        assert 4 <= answer <= 100, "Acceleration value is not in range [4 - 100]"
+        return answer
+
+    @acceleration.setter
+    def acceleration(self, value: int):
+        assert 4 <= value <= 100, "Acceleration value should to be in range [4 - 100]"
+        cmd = "SAZ, {z}".format(z=value)
+        self.prior_controller.write_cmd(cmd)
+
+        answer = self.prior_controller.cmd_answer()
+        if answer == "0":
+            Success(feature=sys._getframe().f_code.co_name, axis=2, value=value)
+        else:
+            Error(feature=sys._getframe().f_code.co_name, response=answer)
+
 
     @property
     def z_position(self) -> int:
-        self.prior_controller.write(("PZ" + "\r").encode())
+        self.prior_controller.write_cmd("PZ")
         z_position = self.prior_controller.cmd_answer()
         try:
             return int(z_position.strip())
@@ -132,14 +188,23 @@ class ZAxis():
 
     @z_position.setter
     def z_position(self, value: int):
-        cmd = "PZ, {z}\r".format(z=value).encode()
+        cmd = "V, {z}\r".format(z=value).encode()
         self.prior_controller.write(cmd)
 
-        answer = self.prior_controller.cmd_answer()
-        if answer == '0':
-            Success(feature="position", axis=0, value=value)
-        else:
-            Error(feature=sys._getframe().f_code.co_name, response=answer)
+        self.prior_controller.looking_for_position(feature=sys._getframe().f_code.co_name, axis=2, value=value)
+
+    def move_relative_down(self, value):
+        cmd = "D, {z}".format(z=value)
+        self.prior_controller.write_cmd(cmd)
+
+        self.prior_controller.looking_for_position(feature=sys._getframe().f_code.co_name, axis="Z", value=value)
+
+    def move_relative_up(self, value):
+        cmd = "U, {z}".format(z=value)
+        self.prior_controller.write_cmd(cmd)
+
+        self.prior_controller.looking_for_position(feature=sys._getframe().f_code.co_name, axis="Z", value=value)
+
 
 
 class PriorController(serial.Serial):
@@ -158,8 +223,8 @@ class PriorController(serial.Serial):
 
         self.peripherals_info = self.initialization()
 
-        self.acceleration = 99
-        self.speed = 100
+        self.acceleration = 10
+        self.speed = 70
         self.resolution = 0.1
 
         self._active_joystick = True
@@ -186,7 +251,20 @@ class PriorController(serial.Serial):
 
         self.z_controller = ZAxis(parent=self)
 
+        self.busy = False
+
         # print(self.s_curve)
+
+    def move_relative_down(self, value):
+        cmd = "D, {z}".format(z=value)
+        self.write_cmd(cmd)
+
+        self.looking_for_position(feature=sys._getframe().f_code.co_name, axis="Z", value=value)
+
+    def move_relative_up(self, value):
+        cmd = "U, {z}".format(z=value)
+        self.write_cmd(cmd)
+        self.looking_for_position(feature=sys._getframe().f_code.co_name, axis="Z", value=value)
 
     @property
     def busy_controller(self):
@@ -216,8 +294,7 @@ class PriorController(serial.Serial):
     def cmd_answer(self):
         # full_answer = self.readline().decode().strip()
         full_answer = self.read_until(b'\r').decode().strip()
-        print(full_answer)
-
+        print("ANSWER     ", full_answer)
         return full_answer
         # self.readline().decode().strip()
         # return full_answer.split("\r", 1)[0]
@@ -267,24 +344,17 @@ class PriorController(serial.Serial):
         self.write_cmd(cmd="RES,s,{resolution}".format(resolution=value))
         response = self.cmd_answer()
         if int(response) == 0:
-            Success(feature=sys._getframe().f_code.co_name, value=value)
+            Success(feature = sys._getframe().f_code.co_name, value=value)
         else:
             print("error " + sys._getframe().f_code.co_name)
 
-    def set_position_as_home(self, previous_coords=None):
+    def set_position_as_home(self):
         self.write_cmd(cmd="Z")
-        if int(self.read(100).decode().strip()) == 0:
-            x = self.x_position
-            y = self.y_position
-            self.home_coords = (x, y)
-
-            if previous_coords is not None:
-                Success(feature="home coordinates {coords}".format(coords=previous_coords), value=(x, y))
-            else:
-
-                Success(feature="home coordinates", value=(x, y))
+        answer = self.cmd_answer()
+        if answer == '0':
+            Success(feature="New home coordinates", value=(self._x_position, self._y_position, self.z_controller._z_position))
         else:
-            print("issue in " + sys._getframe().f_code.co_name)
+            Error(feature=sys._getframe().f_code.co_name, response=answer)
 
     def set_index_stage(self) -> None:
         """
@@ -295,12 +365,8 @@ class PriorController(serial.Serial):
         """
         ##### a chercher
         self.write_cmd(cmd="SIS")
-        response = self.cmd_answer()
-        if response == 'R':
-            self.home_coords = (0, 0)
-            Success(feature="return to home", value=None)
-        else:
-            Error(feature=sys._getframe().f_code.co_name, response=response)
+
+        self.looking_for_position(feature=sys._getframe().f_code.co_name, axis="ALL", value=None)
 
     @property
     def home_coords(self):
@@ -361,10 +427,10 @@ class PriorController(serial.Serial):
         return self._active_joystick
 
     def return2home(self):
-        cmd = "M\r".encode()
-        self.write(cmd)
-        if self.read(100).decode().strip() == 'R':
-            Success(feature="return to home", value=None)
+        cmd = "M"
+        self.write_cmd(cmd)
+
+        self.looking_for_position(feature=sys._getframe().f_code.co_name, axis="ALL", value=None)
 
     @property
     def coords(self) -> str:
@@ -376,12 +442,15 @@ class PriorController(serial.Serial):
     def coords(self, value: typing.Tuple[int]):
         cmd = "G, {x}, {y}".format(x=value[0], y=value[1])
         self.write_cmd(cmd)
-        response = self.cmd_answer()
-        if response == 'R':
-            Success(feature="position", value=value[0], axis=0)
-            Success(feature="position", value=value[1], axis=1)
-        else:
-            Error(feature="Set coords", response=response)
+
+        self.looking_for_position(feature=sys._getframe().f_code.co_name, axis="XY", value=value)
+
+        # response = self.cmd_answer()
+        # if response == 'R':
+        #     Success(feature="position", value=value[0], axis=0)
+        #     Success(feature="position", value=value[1], axis=1)
+        # else:
+        #     Error(feature="Set coords", response=response)
 
     @property
     def x_position(self) -> int:
@@ -397,13 +466,25 @@ class PriorController(serial.Serial):
 
     @x_position.setter
     def x_position(self, value: int):
-        cmd = "G, {x}, {y}\r".format(x=value, y=self.y_position).encode()
-        self.write(cmd)
-        if self.cmd_answer() == 'R':
-            Success(feature="position", axis=0, value=value)
+        cmd = "G, {x}, {y}".format(x=value, y=self._y_position)
+        self.write_cmd(cmd=cmd)
+
+        self.looking_for_position(feature=sys._getframe().f_code.co_name, axis=0, value=value)
+
+    def looking_for_position(self, feature, axis, value):
+        self.busy = True
+        time.sleep(5 * self.timeout)
+        answer = self.cmd_answer()
+        while 'R' not in answer:
+            self.busy = True
+            answer = self.cmd_answer()
+
+        if answer == 'R':
+            Success(feature=feature, axis=axis, value=value)
         else:
-            print("Error")
-        #     self._x_position = int(value)
+            Error(feature=feature, response=answer)
+
+        self.busy = False
 
     @property
     def y_position(self) -> int:
@@ -419,12 +500,14 @@ class PriorController(serial.Serial):
 
     @y_position.setter
     def y_position(self, value: int):
-        cmd = "G, {x}, {y}\r".format(x=self.x_position, y=value).encode()
-        self.write(cmd)
-        if self.cmd_answer() == 'R':
-            Success(feature="position", axis=1, value=value)
-        else:
-            print("Error")
+        cmd = "G, {x}, {y}".format(x=self._x_position, y=value)
+        self.write_cmd(cmd)
+
+        self.looking_for_position(feature=sys._getframe().f_code.co_name, axis=1, value=value)
+        # if self.cmd_answer() == 'R':
+        #     Success(feature="position", axis=1, value=value)
+        # else:
+        #     print("Error")
 
     @active_joystick.setter
     def active_joystick(self, value: bool) -> None:
@@ -471,12 +554,21 @@ class PriorController(serial.Serial):
         if x < 0 or y < 0:
             print("inverse")
 
-        self.write_cmd(cmd="GR, {x_value}, {y_value}".format(x_value=x, y_value=y))
-        response = self.cmd_answer()
-        if response == 'R':
-            Success(feature="x position, y_position", value=("+" + str(x), "+" + str(y)))
+        if x != 0:
+            axis = "X"
+            value = x
         else:
-            Error(feature=sys._getframe().f_code.co_name, response=response)
+            axis = "Y"
+            value = y
+
+        self.write_cmd(cmd="GR, {x_value}, {y_value}".format(x_value=x, y_value=y))
+        # response = self.cmd_answer()
+        # if response == 'R':
+        #     Success(feature="x position, y_position", value=("+" + str(x), "+" + str(y)))
+        # else:
+        #     Error(feature=sys._getframe().f_code.co_name, response=response)
+
+        self.looking_for_position(feature=sys._getframe().f_code.co_name, axis=axis, value=value)
 
     def wait4available(self):
         while self.busy_controller:
@@ -523,7 +615,7 @@ def set_new_home_demo():
     prior.coords = (10000, 10000)
     prior.wait4available()
     print("X, Y, Z POSITIONS : {coords}".format(coords=prior.coords))
-    prior.set_position_as_home(previous_coords=(prior.x_position, prior.y_position))
+    prior.set_position_as_home()
     prior.x_position = 20000
     prior.wait4available()
     print("X POSITION : {X}".format(X=prior.x_position))

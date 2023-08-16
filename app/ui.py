@@ -1,6 +1,7 @@
 import sys
 import threading
 import typing
+from functools import partial
 from time import sleep
 
 import qdarkstyle
@@ -9,7 +10,7 @@ from PyQt5 import QtGui
 from PyQt5.QtCore import QSize, Qt, QObject, pyqtSignal, QThread
 from PyQt5.QtGui import QFont, QKeyEvent
 from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QLCDNumber, \
-    QLabel, QFrame, QSizePolicy, QLayout, QSpacerItem, QFormLayout
+    QLabel, QFrame, QSizePolicy, QLayout, QSpacerItem, QFormLayout, QPushButton
 from qtwidgets import AnimatedToggle
 from superqt import QLabeledSlider
 
@@ -18,6 +19,7 @@ from app.ui_utils import QHLine, AnimatedOnHoverButton, TitleSectionLabel, FormL
 from main import PriorController
 
 lock = threading.Lock()
+
 
 #
 # def locked_command(command) -> None:
@@ -223,7 +225,6 @@ class XYHandler(QWidget):
                   self.xy_directions.down_button]:
             i.click.connect(self.click_xy)
 
-
     def go2home(self):
         lock.acquire(blocking=True)
         self.prior.set_index_stage()
@@ -258,11 +259,9 @@ class XYHandler(QWidget):
 
         self.go2relative_position(relative_position)
 
-
     @locked_thread
     def go2relative_position(self, position):
         self.prior.set_relative_position_steps(*position)
-
 
     def open_absolute_position_window(self) -> None:
         dlg = GoToXY(x_position=self.main_window.x, y_position=self.main_window.y)
@@ -311,7 +310,10 @@ class ZHandler(QWidget):
         acceleration_label = FormLabel("Acceleration")
 
         self.speed_slider = QLabeledSlider(Qt.Orientation.Horizontal)
+        self.speed_slider.setRange(4, 100)
         self.acceleration_slider = QLabeledSlider(Qt.Orientation.Horizontal)
+        self.acceleration_slider.setRange(4, 100)
+
 
         spacer = QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
@@ -337,8 +339,30 @@ class ZHandler(QWidget):
         self.connect_actions()
         self.display()
 
+        # Construct
+        self.acceleration_slider.setValue(self.prior.z_controller.acceleration)
+        self.speed_slider.setValue(self.prior.z_controller.speed)
+
     def connect_actions(self) -> None:
         self.go_to_btn.clicked.connect(self.open_absolute_position_window)
+        self.acceleration_slider.valueChanged.connect(lambda x: setattr(self.prior.z_controller, 'acceleration', x))
+        self.speed_slider.valueChanged.connect(lambda x: setattr(self.prior.z_controller, 'speed', x))
+
+        for i in [self.z_direction.up_button, self.z_direction.down_button]:
+            i.click.connect(self.click_z)
+
+    def click_z(self):
+        step = 50
+        direction = self.z_direction.sender().objectName()
+
+        # UP
+        if getattr(Directions, direction.upper()) == 3:
+            self.prior.z_controller.move_relative_up(value=step)
+        # DOWN
+        elif getattr(Directions, direction.upper()) == 4:
+            self.prior.z_controller.move_relative_down(value=step)
+        else:
+            raise f"The direction {direction.upper()} is not taken in charge on the Z axis'"
 
     def open_absolute_position_window(self) -> None:
         dlg = GoToZ(z_position=self.main_window.z)
@@ -379,8 +403,15 @@ class GeneralCommands(QWidget):
                                                    background_color=QtGui.QColor(255, 255, 255))
         self.emergency_btn.setFixedWidth(300)
 
+        self.back2home_btn = QPushButton("Back 2 Home")
+        self.define_as_home_btn = QPushButton("Set as Home")
+
         layout.addWidget(TitleSectionLabel("General commands"), alignment=Qt.AlignCenter | Qt.AlignTop)
         layout.addWidget(form_widget, alignment=Qt.AlignCenter)
+
+        layout.addWidget(self.back2home_btn, alignment=Qt.AlignBottom | Qt.AlignCenter)
+        layout.addWidget(self.define_as_home_btn, alignment=Qt.AlignBottom | Qt.AlignCenter)
+
         layout.addWidget(self.emergency_btn, alignment=Qt.AlignBottom | Qt.AlignCenter)
 
         self.setLayout(layout)
@@ -393,6 +424,8 @@ class GeneralCommands(QWidget):
     def connect_actions(self):
         self.emergency_btn.clicked.connect(self.main_window.prior.emergency_stop)
         self.joystick_utilisation_cb.stateChanged.connect(lambda value: setattr(self.prior, "active_joystick", value))
+        self.define_as_home_btn.clicked.connect(self.prior.set_position_as_home)
+        self.back2home_btn.clicked.connect(self.prior.return2home)
 
 
 class DisplayCurrentValues(QWidget):
@@ -575,16 +608,19 @@ class RealTimeCoordWorker(QObject):
         super().__init__()
         # self.prior = parent.prior
         self.parent = parent
-        self.delay_refresh = 0.2
+        self.delay_refresh = 0.1
 
     def run(self):
         """Long-running task."""
         while True:
-            sleep(self.delay_refresh)
-            # print(self.prior.coords)
-            lock.acquire(blocking=True)
-            self.coords.emit(self.parent.prior.coords)
-            lock.release()
+            # print(self.parent.prior.busy)
+            if not self.parent.prior.busy:
+
+                sleep(self.delay_refresh)
+                # print(self.prior.coords)
+                lock.acquire(blocking=True)
+                self.coords.emit(self.parent.prior.coords)
+                lock.release()
         # self.finished.emit()
 
 
@@ -595,7 +631,7 @@ class Window(QWidget):
         self._y = None
         self._z = None
 
-        self.prior = PriorController(port="COM12", baudrate=9600, timeout=0.2)
+        self.prior = PriorController(port="COM12", baudrate=9600, timeout=0.05)
 
         layout = QVBoxLayout()
         control_layout = QHBoxLayout()

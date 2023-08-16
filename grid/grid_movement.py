@@ -355,14 +355,10 @@ if __name__ == "__main__":
     # movement.recover_y = 30
     movement.course = Course().H_RIGHT
 
-    prior = PriorController(port="COM13", baudrate=9600, timeout=0.2)
-    prior.set_index_stage()
+    prior = PriorController(port="COM12", baudrate=9600, timeout=0.1)
+    prior.return2home()
 
-    # worker = Thread(target=get_prior_coords(prior))
-    # worker.daemon = True
-    # worker.start()
-    # print(prior.coords)
-    prior.wait4available()
+
     print("Init coords {}".format(prior.coords))
 
     run = True
