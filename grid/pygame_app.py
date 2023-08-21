@@ -16,13 +16,16 @@ from main import PriorController
 APP_SIZE = (700, 500)
 GRID = (1500, 1000)  # width, height -> 1 pixel equals 10 µm
 IMAGE_SIZE = (100, 100)  # width, height -> camera image size
-RATIO = 100  # 1 pixel equals 10 µm
+RATIO = 250  # 1 pixel equals 25 µm
+X_LIMIT = 288000  # microscope's X limit (in µm)
+Y_LIMIT = 80000  # microscope's Y limit (in µm)
 
 REFRESH_PRIOR_POSITION = pygame.USEREVENT + 1
 
 
 class Sprite:
     def __init__(self, prior_controller: serial.Serial, size=None):
+        self.prior = prior_controller
         self.parent = None
         self.size = size
 
@@ -41,8 +44,8 @@ class Sprite:
         # else:
 
         stop_flag = Event()
-        self.thread = RefreshPriorCoordsThread(prior_device=prior_controller, event=stop_flag, period=0.5)
-        self.thread.start()
+        # self.thread = RefreshPriorCoordsThread(prior_device=prior_controller, event=stop_flag, period=0.5)
+        # self.thread.start()
 
         self.position = self.get_position()
         self.rect = Rect(self.position, IMAGE_SIZE)
@@ -71,8 +74,20 @@ class Sprite:
         self.set_pos(pos=self.position)
 
     def get_position(self):
+        # time.sleep(1)
 
-        x_pos, y_pos, _ = self.thread.coords
+
+        # x_pos, y_pos, _ = self.thread.coords
+        response_coords = self.prior.coords
+
+        try:
+            coords = [int(x) for x in response_coords.split(",")]
+
+        except:
+            # if we raise an error, we return the previous coordinates value
+            print("error with report_xyz_values function / coords value = {}".format(response_coords))
+            coords = 0, 0, 0
+        x_pos, y_pos, _ = coords
         print("thread pos {} {}".format(x_pos, y_pos))
 
         if x_pos is not None:
@@ -96,7 +111,8 @@ class Sprite:
         surf.blit(self.image, self.rect)
 
     def __del__(self):
-        self.thread.stop()
+        print("stop thread")
+        # self.thread.stop()
 
     # def distance(self, other):
     #     distance = self.position - other.position
@@ -148,6 +164,8 @@ class App:
     #     self.screen = pygame.display.set_mode(self.rect.size, self.flags)
 
     def run(self):
+        self.update()
+        self.draw()
         while self.running:
             pygame.time.delay(1000)
             for event in pygame.event.get():
@@ -156,6 +174,7 @@ class App:
 
 
             self.grid.pop(0)
+            print(self.grid)
             pos = self.grid[0]
             print("############### start ############")
             self.prior.coords = (pos[0] * RATIO, pos[1] * RATIO)
@@ -180,7 +199,7 @@ class App:
                 self.objects.remove(obj)
                 del obj
 
-            self.prior_visualisation.thread.stop()
+            # self.prior_visualisation.thread.stop()
             pygame.quit()
 
         # elif event.type == REFRESH_PRIOR_POSITION:
@@ -214,7 +233,10 @@ class App:
 if __name__ == '__main__':
     lock = threading.Lock()
 
-    prior = PriorController(port="COM12", baudrate=9600, timeout=0.2)
+    prior = PriorController(port="COM12", baudrate=9600, timeout=0.1)
+    prior.go2limit_switch()
+    prior.set_position_as_home()
+    prior.speed = 50
     prior.return2home()
 
 
@@ -224,10 +246,12 @@ if __name__ == '__main__':
 
     x, y = 0, 0
     vel = 5
-    movement = GridMovement(x, y, vel, x_lim=(0, GRID[0]), y_lim=(0, round(50000 / RATIO)), ratio=RATIO)
+    step= 50
+    movement = GridMovement(x, y, vel, x_lim=(0, round(280000/RATIO)), y_lim=(0, round(80000 / RATIO)), ratio=RATIO)
     movement.course = Course().V_RIGHT
+    movement.recover_x = 50
 
-    grid = movement.get_grid(start_pt=(x, y), final_pt=(600, 0), step=50)
+    grid = movement.get_grid(start_pt=(x, y), final_pt=(600, 0), step=step)
 
     app = App('Motorized microscope', prior, grid)
 
