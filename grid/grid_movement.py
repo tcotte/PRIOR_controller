@@ -243,6 +243,22 @@ class GridMovement:
                 grid.append([x, y])
         return grid
 
+    @staticmethod
+    def get_x_limits(grid):
+        np_grid = np.array(grid)
+        return min(np_grid[:, 0]), max(np_grid[:, 0])
+
+    @staticmethod
+    def get_y_limits(grid):
+        np_grid = np.array(grid)
+        return min(np_grid[:, 1]), max(np_grid[:, 1])
+
+    def get_bounding_rec_grid(self, grid):
+        x_min, x_max = self.get_x_limits(grid)
+        y_min, y_max = self.get_y_limits(grid)
+        return x_min, y_min, x_max, y_max
+
+
 
 def position_done(last_bbox, current_bbox):
     # position down

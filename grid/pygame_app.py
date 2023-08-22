@@ -251,7 +251,7 @@ if __name__ == '__main__':
     movement.course = Course().V_RIGHT
     movement.recover_x = 50
 
-    grid = movement.get_grid(start_pt=(x, y), final_pt=(600, 0), step=step)
+    grid = movement.get_grid(start_pt=(x, y), final_pt=(600, 600), step=step)
 
     app = App('Motorized microscope', prior, grid)
 
