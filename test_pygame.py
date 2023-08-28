@@ -1,6 +1,7 @@
 # importing libraries
 import cv2
 import numpy as np
+from PyQt5 import QtGui, QtWidgets
 from PyQt5.QtCore import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
@@ -44,6 +45,7 @@ class CameraThread(QThread):
         self.stop_capture()
         super().stop()
 
+
 class CameraWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -55,11 +57,6 @@ class CameraWindow(QWidget):
         self.camera = CameraThread()
         self.camera.image.connect(self.update_image)
         self.camera.start()
-
-
-
-
-
 
     def update_image(self, frame):
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -73,9 +70,6 @@ class CameraWindow(QWidget):
         filename, _ = QFileDialog.getSaveFileName(self, "Save Photo", "", "JPEG Image (*.jpg)")
         if filename:
             image.save(filename, "jpg")
-
-
-
 
 
 class Window(QMainWindow):
@@ -120,8 +114,9 @@ class Window(QMainWindow):
             self.win = CameraWindow()
             self.win.show()
 
-
-
+    def resizeEvent(self, event):
+        print("Window has been resized")
+        QtWidgets.QMainWindow.resizeEvent(self, event)
 
 
 # creating a board class
@@ -138,12 +133,13 @@ class Board(QFrame):
 
     # block width and height
     WIDTHINBLOCKS = IMAGE_SIZE[0]
-    HEIGHTINBLOCKS = IMAGE_SIZE[1]
+    HEIGHTINBLOCKS = round(IMAGE_SIZE[0]*0.8)
 
     # constructor
     def __init__(self, parent):
         super(Board, self).__init__(parent)
 
+        """
         x, y = 0, 0
         vel = 5
         step = 50
@@ -151,10 +147,17 @@ class Board(QFrame):
                                 ratio=RATIO)
         movement.course = Course().V_RIGHT
         movement.recover_x = 50
-
         self.grid = movement.get_grid(start_pt=(x, y), final_pt=(600, 250),
                                       step=step)
         self.bounding_rec = movement.get_bounding_rec_grid(grid=self.grid)
+        """
+
+        gm = GridMovement(x=0, y=0, velocity=100, x_lim=(0, 500), y_lim=(0, 500), img_size=(100, 100))
+        gm.course = Course().V_RIGHT
+        gm.recover_x = 10
+        gm.recover_y = 10
+        self.grid = gm.get_grid(start_pt=(0, 0), final_pt=(500, 500), step=10)
+        self.bounding_rec = gm.get_bounding_rec_grid(grid=self.grid)
 
         self.counter = 0
 
@@ -266,7 +269,7 @@ class Board(QFrame):
 
         if filled:
             # painting rectangle
-            painter.fillRect(x + 1, y + 1, self.square_width() - 2,
+            painter.fillRect(x, y, self.square_width() - 2,
                              self.square_height() - 2, color)
         else:
             painter.setPen(QPen(Qt.black, 1, Qt.DashDotLine))
