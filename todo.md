@@ -62,3 +62,10 @@ TODO
 - S'interfacer avec la caméra
 - Systeme de grille
 - Gestion du focus avec l'axe Z
+
+
+
+
+
+#############
+- Recouvrement en x et y ( positif = écart, négatif = recouvrement) le tout en %

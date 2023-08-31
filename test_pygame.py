@@ -1,4 +1,6 @@
 # importing libraries
+from typing import Final
+
 import cv2
 import numpy as np
 from PyQt5 import QtGui, QtWidgets
@@ -10,12 +12,16 @@ import sys
 
 from grid.grid_movement import GridMovement, Course
 
-APP_SIZE = (1200, 800)
-GRID = (1500, 1000)  # width, height -> 1 pixel equals 10 µm
-IMAGE_SIZE = (10, 10)  # width, height -> camera image size
-RATIO = 250  # 1 pixel equals to 250 µm
+APP_SIZE = (700, 500)
+GRID = (750, 500)  # width, height -> 1 pixel equals 10 µm
+IMAGE_SIZE = (11, 9)  # width, height -> camera image size
+RATIO = 76 * 2  # 1 pixel equals to 250 µm
 X_LIMIT = 288000  # microscope's X limit (in µm)
 Y_LIMIT = 80000  # microscope's Y limit (in µm)
+
+SPACE_BETWEEN_SLIDES: Final = 3300 / RATIO
+SLIDE_WIDTH: Final = 26000 / RATIO
+SLIDE_HEIGHT: Final = 76000 / RATIO
 
 
 # creating game window
@@ -82,22 +88,30 @@ class Window(QMainWindow):
 
         # creating a status bar to show result
         self.statusbar = self.statusBar()
+        self.position_label = QLabel()
+
         self.open_camera_btn = QPushButton("Camera")
-        self.statusbar.addWidget(self.open_camera_btn)
+        self.statusbar.addPermanentWidget(self.open_camera_btn)
+        self.statusbar.addPermanentWidget(self.position_label, 100)
+        #self.statusbar.addWidget(self.open_camera_btn)
 
         # adding border to the status bar
 
         # calling showMessage method when signal received by board
-        self.board.msg2statusbar[str].connect(self.statusbar.showMessage)
+        self.board.msg2statusbar[str].connect(lambda text: self.position_label.setText(text))
 
         # adding board as a central widget
         self.setCentralWidget(self.board)
 
         # setting title to the window
-        self.setWindowTitle('Snake game')
+        self.setWindowTitle('Lens visualisation')
 
         # setting geometry to the window
-        self.setGeometry(50, 50, 1050, 850)
+
+        # self.board.minimumSize = QSize(APP_SIZE[0] + 50, APP_SIZE[1] + 50)
+        self.board.setFixedSize(QSize(APP_SIZE[0] + 100, APP_SIZE[1] + 100))
+        # self.board.setGeometry(50, 50, APP_SIZE[0] + 50, APP_SIZE[1] + 50)
+        # self.setGeometry(50, 50, 50 + APP_SIZE[0] + self.statusbar.width(), 50+APP_SIZE[1] + self.statusbar.size().height()*3)
 
         # starting the board object
         self.board.start()
@@ -106,17 +120,13 @@ class Window(QMainWindow):
         # showing the main window
         self.show()
 
-    def connect_actions(self):
+    def connect_actions(self) -> None:
         self.open_camera_btn.clicked.connect(self.open_camera_window)
 
-    def open_camera_window(self):
+    def open_camera_window(self) -> None:
         if self.win is None:
             self.win = CameraWindow()
             self.win.show()
-
-    def resizeEvent(self, event):
-        print("Window has been resized")
-        QtWidgets.QMainWindow.resizeEvent(self, event)
 
 
 # creating a board class
@@ -129,35 +139,27 @@ class Board(QFrame):
 
     # speed of the snake
     # timer countdown time
-    SPEED = 1000
+    SPEED = 100
 
     # block width and height
     WIDTHINBLOCKS = IMAGE_SIZE[0]
-    HEIGHTINBLOCKS = round(IMAGE_SIZE[0]*0.8)
+    HEIGHTINBLOCKS = IMAGE_SIZE[1]
 
     # constructor
     def __init__(self, parent):
         super(Board, self).__init__(parent)
 
-        """
-        x, y = 0, 0
-        vel = 5
-        step = 50
-        movement = GridMovement(x, y, vel, x_lim=(0, round(X_LIMIT / RATIO)), y_lim=(0, round(Y_LIMIT / RATIO)),
-                                ratio=RATIO)
-        movement.course = Course().V_RIGHT
-        movement.recover_x = 50
-        self.grid = movement.get_grid(start_pt=(x, y), final_pt=(600, 250),
-                                      step=step)
-        self.bounding_rec = movement.get_bounding_rec_grid(grid=self.grid)
-        """
-
-        gm = GridMovement(x=0, y=0, velocity=100, x_lim=(0, 500), y_lim=(0, 500), img_size=(100, 100))
+        gm = GridMovement(x=0, y=0, img_size=IMAGE_SIZE, x_lim=(round(0 / RATIO), 15000 / RATIO),
+                          y_lim=(round(0 / RATIO), 15000 / RATIO))
         gm.course = Course().V_RIGHT
-        gm.recover_x = 10
-        gm.recover_y = 10
-        self.grid = gm.get_grid(start_pt=(0, 0), final_pt=(500, 500), step=10)
-        self.bounding_rec = gm.get_bounding_rec_grid(grid=self.grid)
+        gm.recover_x = 1
+        gm.recover_y = 1
+        self.grid = gm.get_grid(start_pt=(round(40000 / RATIO), round(40000 / RATIO)),
+                                final_pt=(round(60000 / RATIO), round(60000 / RATIO)), percentage_overlap=(0.5, 1.1))
+        # self.grid = gm.get_grid(start_pt=(round(85000/RATIO), 0), final_pt=(round(114000/RATIO), round(76000/RATIO)),
+        #                        step=11)
+        self.bounding_rec_limits = gm.get_bounding_rec_grid(grid=self.grid)
+        self.bounding_rec_visu = gm.get_bounding_rec_visu()
 
         self.counter = 0
 
@@ -185,11 +187,27 @@ class Board(QFrame):
         # direction
         self.direction = 1
 
-        # called drop food method
-        self.drop_food()
-
         # setting focus
         self.setFocusPolicy(Qt.StrongFocus)
+
+        # self.paint_lames()
+
+    def paint_slides(self, painter: QPainter) -> None:
+        """
+        Paint slides on board
+        :param painter: Qt painter
+        """
+
+        painter.setPen(QPen(Qt.gray, 1, Qt.DashDotDotLine))
+
+        for i in range(4):
+            rec = [(SLIDE_WIDTH * i + i * SPACE_BETWEEN_SLIDES, SLIDE_WIDTH * (i + 1) + i * SPACE_BETWEEN_SLIDES),
+                   (0, SLIDE_HEIGHT)]  # (x0, x1), (y0, y1)
+            rec = QRectF(QPointF(rec[0][0], rec[1][0]),
+                         QPointF(rec[0][1], rec[1][1]))
+
+            painter.fillRect(rec, QColor(0, 203, 203, 40))
+            painter.drawRect(rec)
 
     # square width method
     def square_width(self):
@@ -206,10 +224,13 @@ class Board(QFrame):
         return self.contentsRect().height() / self.y_lim
 
     # start method
-    def start(self):
+    def start(self) -> None:
+        """
+        Init the timer
+        """
         # msg for status bar
         # score = current len - 2
-        self.msg2statusbar.emit(str(len(self.snake) - 2))
+        self.msg2statusbar.emit(str(tuple([x*RATIO for x in self.grid[0]])))
 
         # starting timer
         self.timer.start(Board.SPEED, self)
@@ -225,6 +246,8 @@ class Board(QFrame):
 
         # board top
         boardtop = rect.bottom() - Board.HEIGHTINBLOCKS * self.square_height()
+
+        self.paint_slides(painter)
 
         # drawing snake
         for pos in self.snake:
@@ -245,23 +268,24 @@ class Board(QFrame):
     def draw_previous_lenses(self, painter, color: QColor = QColor(0x228B22)):
         previous_pts = self.grid[:self.counter]
         for pt in previous_pts:
-            x = pt[0]
-            y = pt[1]
-            painter.fillRect(x, y, self.square_width(), self.square_height(), color)
+            painter.fillRect(pt[0], pt[1], self.WIDTHINBLOCKS, self.HEIGHTINBLOCKS, color)
 
     def draw_current_lens(self, painter, color: QColor = QColor(0x228B22)):
         try:
             x = self.grid[self.counter][0]
             y = self.grid[self.counter][1]
-            painter.fillRect(x, y, self.square_width(), self.square_height(), color)
+            painter.fillRect(x, y, self.WIDTHINBLOCKS, self.HEIGHTINBLOCKS, color)
         except IndexError:
+            self.msg2statusbar.emit(str("Grid Finished"
+                                        ))
             print("Grid finished")
+            self.timer.stop()
 
     def draw_grid_contours(self, painter):
-        painter.setPen(QPen(Qt.black, 1, Qt.DashDotLine))
-        print(self.bounding_rec)
-        rec = QRectF(self.bounding_rec[0], self.bounding_rec[1], self.bounding_rec[2] + self.square_width(),
-                     self.bounding_rec[3] + self.square_height())
+        painter.setPen(QPen(Qt.black, 2, Qt.DashDotLine))
+
+        rec = QRectF(QPointF(self.bounding_rec_visu[0], self.bounding_rec_visu[1]), QPointF(self.bounding_rec_visu[2],
+                                                                                            self.bounding_rec_visu[3]))
         painter.drawRect(rec)
 
     # drawing square
@@ -283,84 +307,8 @@ class Board(QFrame):
         # getting key pressed
         key = event.key()
 
-        # if left key pressed
-        if key == Qt.Key_Left:
-            # if direction is not right
-            if self.direction != 2:
-                # set direction to left
-                self.direction = 1
-
-        # if right key is pressed
-        elif key == Qt.Key_Right:
-            # if direction is not left
-            if self.direction != 1:
-                # set direction to right
-                self.direction = 2
-
-        # if down key is pressed
-        elif key == Qt.Key_Down:
-            # if direction is not up
-            if self.direction != 4:
-                # set direction to down
-                self.direction = 3
-
-        # if up key is pressed
-        elif key == Qt.Key_Up:
-            # if direction is not down
-            if self.direction != 3:
-                # set direction to up
-                self.direction = 4
-
-        elif key == Qt.Key_Q:
+        if key == Qt.Key_Q:
             QApplication.quit()
-
-    # method to move the snake
-    def move_snake(self):
-
-        # if direction is left change its position
-        if self.direction == 1:
-            self.current_x_head, self.current_y_head = self.current_x_head - 1, self.current_y_head
-
-            # if it goes beyond left wall
-            if self.current_x_head:
-                self.current_x_head = Board.WIDTHINBLOCKS - 1
-
-        # if direction is right change its position
-        if self.direction == 2:
-            self.current_x_head, self.current_y_head = self.current_x_head + 1, self.current_y_head
-            # if it goes beyond right wall
-            if self.current_x_head == Board.WIDTHINBLOCKS:
-                self.current_x_head = 0
-
-        # if direction is down change its position
-        if self.direction == 3:
-            self.current_x_head, self.current_y_head = self.current_x_head, self.current_y_head + 1
-            # if it goes beyond down wall
-            if self.current_y_head == Board.HEIGHTINBLOCKS:
-                self.current_y_head = 0
-
-        # if direction is up change its position
-        if self.direction == 4:
-            self.current_x_head, self.current_y_head = self.current_x_head, self.current_y_head - 1
-            # if it goes beyond up wall
-            if self.current_y_head:
-                self.current_y_head = Board.HEIGHTINBLOCKS
-
-        # changing head position
-        head = [self.current_x_head, self.current_y_head]
-        # inset head in snake list
-        self.snake.insert(0, head)
-
-        # if snake grow is False
-        if not self.grow_snake:
-            # pop the last element
-            self.snake.pop()
-
-        else:
-            # show msg in status bar
-            self.msg2statusbar.emit(str(len(self.snake) - 2))
-            # make grow_snake to false
-            self.grow_snake = False
 
     def increment_counter(self):
         self.counter += 1
@@ -371,58 +319,9 @@ class Board(QFrame):
         # checking timer id
         if event.timerId() == self.timer.timerId():
             self.increment_counter()
-            print(str(self.counter))
+            self.msg2statusbar.emit(str(tuple([x*RATIO for x in self.grid[self.counter]])))
             # update the window
             self.update()
-
-    # method to check if snake collides itself
-    def is_suicide(self):
-        # traversing the snake
-        for i in range(1, len(self.snake)):
-            # if collision found
-            if self.snake[i] == self.snake[0]:
-                # show game ended msg in status bar
-                self.msg2statusbar.emit(str("Game Ended"
-                                            ))
-                # making background color black
-                self.setStyleSheet(
-                    "background-color: black"
-                )
-                # stopping the timer
-                self.timer.stop()
-                # updating the window
-                self.update()
-
-    # method to check if the food cis collied
-    def is_food_collision(self):
-
-        # traversing the position of the food
-        for pos in self.food:
-            # if food position is similar of snake position
-            if pos == self.snake[0]:
-                # remove the food
-                self.food.remove(pos)
-                # call drop food method
-                self.drop_food()
-                # grow the snake
-                self.grow_snake = True
-
-    # method to drop food on screen
-    def drop_food(self):
-        # creating random co-ordinates
-        x = random.randint(3, 58)
-        y = random.randint(3, 38)
-
-        # traversing if snake position is not equal to the
-        # food position so that food do not drop on snake
-        for pos in self.snake:
-            # if position matches
-            if pos == [x, y]:
-                # call drop food method again
-                self.drop_food()
-
-        # append food location
-        self.food.append([x, y])
 
 
 # main method
