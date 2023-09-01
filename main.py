@@ -209,9 +209,11 @@ class ZAxis:
 
 class PriorController(serial.Serial):
     """
-    X max = 123 289
+    X max = 123 298
             -122 895
     Y max = -80073
+
+    Max_speed: 8mm/s
 
     """
 
@@ -223,8 +225,8 @@ class PriorController(serial.Serial):
 
         self.peripherals_info = self.initialization()
 
-        self.acceleration = 10
-        self.speed = 70
+        self.acceleration = 50
+        self.speed = 50
         self.resolution = 0.1
 
         self._active_joystick = True
@@ -305,6 +307,42 @@ class PriorController(serial.Serial):
         self._s_curve = self.cmd_answer()
         return self._s_curve
 
+    def go2limit_switch(self, step: int = 500) -> None:
+        """
+        Limit switch definition: as an object  makes contact with the operator of the switch, it eventually moves the
+        actuator to the "limit" where the elec-trical contacts change state.
+        When the XY scale makes contact with the limit switch of X or Y position, it returns a new value :
+        - "0A" when positions -X and -Y are reached.
+        - "02" when positions -X is reached.
+        - "08" when positions -Y is reached.
+
+        The aim of this function is to reach the limit switch of X and Y positions (so have "0A" as answer). To do it,
+        we go back on X and Y step by step and if a limit switch is reached (X or Y position), we go back on only one
+        axis (whose its position is not reached) until reach the XY switch limits.
+
+        It is possible that, at the beginning of the function, the X and/or Y positions are behind the switch limit
+        (so the XY switch limits will not be reached going back step by step). To prevent it, we move forward by 2 steps
+        before going back.
+        :param step: step used to go back (in µm).
+        """
+        self.set_relative_position_steps(x=2 * step, y=2 * step)
+        answer_limit = ''
+        while answer_limit != '0A':
+            self.write_cmd("LMT")
+            answer_limit = self.cmd_answer()
+
+            # -X is reached
+            if answer_limit == '02':
+                self.set_relative_position_steps(y=-step)
+            # -Y is reached
+            elif answer_limit == '08':
+                self.set_relative_position_steps(x=-step)
+            elif answer_limit != '0A':
+                self.set_relative_position_steps(x=-step, y=-step)
+
+        Success(feature=sys._getframe().f_code.co_name)
+
+
     @s_curve.setter
     def s_curve(self, value: int):
 
@@ -352,7 +390,7 @@ class PriorController(serial.Serial):
         self.write_cmd(cmd="Z")
         answer = self.cmd_answer()
         if answer == '0':
-            Success(feature="New home coordinates", value=(self._x_position, self._y_position, self.z_controller._z_position))
+            Success(feature="New home coordinates")
         else:
             Error(feature=sys._getframe().f_code.co_name, response=answer)
 
@@ -472,12 +510,14 @@ class PriorController(serial.Serial):
         self.looking_for_position(feature=sys._getframe().f_code.co_name, axis=0, value=value)
 
     def looking_for_position(self, feature, axis, value):
+        self.flushOutput()
         self.busy = True
-        time.sleep(5 * self.timeout)
+
         answer = self.cmd_answer()
         while 'R' not in answer:
             self.busy = True
             answer = self.cmd_answer()
+            # time.sleep(2 * self.timeout)
 
         if answer == 'R':
             Success(feature=feature, axis=axis, value=value)

@@ -62,3 +62,9 @@ TODO
 - S'interfacer avec la caméra
 - Systeme de grille
 - Gestion du focus avec l'axe Z
+
+
+##############
+- recherche sur le focus en Z
+- recherche sur le stitching
+- améliorer et commenter la grid

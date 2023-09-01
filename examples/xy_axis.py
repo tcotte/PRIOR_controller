@@ -1,3 +1,5 @@
+import keyboard
+
 from main import PriorController
 
 
@@ -16,6 +18,7 @@ def set_y_position():
     print(prior.y_position)
     prior.close()
 
+
 def return2home_demo():
     prior = PriorController(port="COM12", baudrate=9600, timeout=0.1)
     prior.set_index_stage()
@@ -23,8 +26,30 @@ def return2home_demo():
     print(prior.coords)
     prior.close()
 
+
+def report_limit_switch():
+    prior = PriorController(port="COM12", baudrate=9600, timeout=0.1)
+    while True:
+        prior.write_cmd("LMT")
+        print(prior.cmd_answer())
+
+        if keyboard.is_pressed("q"):
+            print("q pressed, ending loop")
+            prior.close()
+            break
+
+
 if __name__ == "__main__":
-    set_y_position()
+    prior = PriorController(port="COM12", baudrate=9600, timeout=0.1)
+    prior.go2limit_switch()
+    prior.set_position_as_home()
+    prior.close()
+    # report_limit_switch()
+
+    # prior = PriorController(port="COM12", baudrate=9600, timeout=0.1)
+    # prior.set_index_stage()
+    # prior.close()
+
     # return2home_demo()
 
     # prior = PriorController(port="COM12", baudrate=9600, timeout=0.1)

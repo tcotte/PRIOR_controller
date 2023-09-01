@@ -181,10 +181,11 @@ class XYHandler(QWidget):
         layout_btn.addItem(hspacer)
         layout_btn.addWidget(self.home_btn)
 
-        speed_label = FormLabel("Speed")
+        speed_label = FormLabel("Speed (mm/s)")
         acceleration_label = FormLabel("Acceleration")
 
         self.speed_slider = QLabeledSlider(Qt.Orientation.Horizontal)
+        self.speed_slider.setRange(0, 8)
         self.acceleration_slider = QLabeledSlider(Qt.Orientation.Horizontal)
 
         layout = QVBoxLayout()
@@ -211,7 +212,15 @@ class XYHandler(QWidget):
 
         # Construct
         self.acceleration_slider.setValue(self.main_window.prior.acceleration)
-        self.speed_slider.setValue(self.main_window.prior.speed)
+        self.speed_slider.setValue(self.convert_prior_speed_2_mms(self.main_window.prior.speed))
+
+    def convert_prior_speed_2_mms(self, value_ps):
+        ratio_ps_mms = 100/8
+        return value_ps/ratio_ps_mms
+
+    def convert_mms_2_prior_speed(self, value_mms):
+        ratio_ps_mms = 100/8
+        return value_mms*ratio_ps_mms
 
     def connect_actions(self) -> None:
         self.go_to_btn.clicked.connect(self.open_absolute_position_window)
@@ -232,7 +241,7 @@ class XYHandler(QWidget):
 
     @locked_thread
     def change_speed(self, value):
-        setattr(self.prior, 'speed', value)
+        setattr(self.prior, 'speed', self.convert_mms_2_prior_speed(value))
 
     @locked_thread
     def change_acceleration(self, value):
