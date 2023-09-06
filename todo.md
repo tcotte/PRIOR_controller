@@ -68,3 +68,21 @@ TODO
 - recherche sur le focus en Z
 - recherche sur le stitching
 - améliorer et commenter la grid
+=======
+
+
+
+#############
+- Recouvrement en x et y ( positif = écart, négatif = recouvrement) le tout en %
+
+#############
+- Evaluer sharpness et motorisation en Z
+- Evaluer la possibilité de passer le logiciel vers Proscan II
+
+
+
+#########
+- Enlever les doublons dans la grille quand on change de colonne
+- Enlever les rations dans la grid pour éviter d'avoir de mauvaises valuers en résultat
+- 20% en x = 304. En fait une window fait ~250µm (850/4=212.5µm)
+- regarder à partir de combien de step on peut faire l'algo fp12

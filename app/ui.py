@@ -640,7 +640,7 @@ class Window(QWidget):
         self._y = None
         self._z = None
 
-        self.prior = PriorController(port="COM12", baudrate=9600, timeout=0.05)
+        self.prior = PriorController(port="COM15", baudrate=9600, timeout=0.05)
 
         layout = QVBoxLayout()
         control_layout = QHBoxLayout()
