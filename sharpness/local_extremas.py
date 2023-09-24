@@ -24,6 +24,23 @@ def get_nearest_multiple(number: float, multiple: int) -> int:
     return round(number / multiple) * multiple
 
 
+def get_sharpest_z(sharpness_array: np.array, z_positions: typing.List,
+                   order: int = 3):
+    local_maxima_idx = argrelextrema(sharpness_array, np.greater, order=order)[0]
+
+    if len(local_maxima_idx) == 2:
+        local_maxima_positions = [z_positions[x] for x in local_maxima_idx]
+        fr_z = sum(local_maxima_positions) * director_coef + beta
+        return get_nearest_multiple(fr_z, step)
+
+    elif len(local_maxima_idx) == 1:
+        return z_positions[local_maxima_idx]
+
+    else:
+        print("There was not one or two local maximas !")
+        return None
+
+
 def plot_sharpness_depending_on_z(sharpness_array: np.array, z_positions: typing.List, plot_fr: bool = True,
                                   order: int = 3):
     # find local maximas
@@ -41,6 +58,7 @@ def plot_sharpness_depending_on_z(sharpness_array: np.array, z_positions: typing
         if plot_fr:
             fr_z = sum(local_maxima_positions) * director_coef + beta
             nearest_fr_z = get_nearest_multiple(fr_z, step)
+            print(f"FR: {str(nearest_fr_z)}")
 
             sharpness_fr_value = sharpness_array[round(nearest_fr_z / step)]
             plt.vlines(x=nearest_fr_z, ymin=-15, ymax=sharpness_fr_value, linestyles='dotted',
@@ -50,9 +68,9 @@ def plot_sharpness_depending_on_z(sharpness_array: np.array, z_positions: typing
     elif len(local_maxima_idx) == 1:
         fr = z_positions[local_maxima_idx]
         if plot_fr:
-            plt.vlines(x=fr, ymin=-15, ymax=sharpness_array[round(fr/step)], linestyles='dotted',
+            plt.vlines(x=fr, ymin=-15, ymax=sharpness_array[round(fr / step)], linestyles='dotted',
                        colors='#cf7806')
-            plt.text(x=fr - 5, y=sharpness_array[round(fr/step)] + 3, s="fr", color='#cf7806')
+            plt.text(x=fr - 5, y=sharpness_array[round(fr / step)] + 3, s="fr", color='#cf7806')
 
 
     else:
@@ -65,9 +83,6 @@ def plot_sharpness_depending_on_z(sharpness_array: np.array, z_positions: typing
     plt.xlabel('Lens position in z axis (µm)')
     plt.title('Sharpness in function of lens position')
     plt.show()
-
-
-
 
 
 if __name__ == "__main__":

@@ -86,3 +86,13 @@ TODO
 - Enlever les rations dans la grid pour éviter d'avoir de mauvaises valuers en résultat
 - 20% en x = 304. En fait une window fait ~250µm (850/4=212.5µm)
 - regarder à partir de combien de step on peut faire l'algo fp12
+
+
+#########
+- faire la diagonale
+- plotter les differentes courbes de sober avec differnetes values de y (10 points)
+
+LA DIAGONALE :  z [100, 600]
+                y [0, -17800]
+                x [0, 5624]
+10 points.
