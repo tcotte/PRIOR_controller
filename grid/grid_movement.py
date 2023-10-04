@@ -8,6 +8,15 @@ GRID = (200, 200)  # width, height -> 1 pixel equals 10 µm
 IMAGE_SIZE = (11, 9)  # width, height -> camera image size
 RATIO = 76 * 2 * 4  # 1 pixel equals 10 µm
 
+""""
+Objectif Olympus x40:
+Scale: 11.6372 px/µm
+
+img: 2448*2048
+img_size = 210.35988*175.98735
+
+"""
+
 
 class Course:
     H_RIGHT = 1
@@ -233,6 +242,7 @@ class GridMovement:
         self.y_lim = [start_pt[1], final_pt[1]]
         self.x_lim = [start_pt[0], final_pt[0]]
 
+        self.velocity = percentage_overlap
         self.velocity = percentage_overlap
         position_reached = False
         grid = []
