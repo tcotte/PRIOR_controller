@@ -1,4 +1,5 @@
 import os.path
+import shutil
 
 import cv2
 import numpy as np
@@ -6,7 +7,7 @@ from matplotlib import pyplot as plt
 
 from sharpness.local_extremas import plot_sharpness_depending_on_z, get_sharpest_z
 
-path_folder = r"A:\TEST\diagonal_x40"
+path_folder = r"C:\Users\tristan_cotte\PycharmProjects\prior_controller\output_picture\grid x40"
 
 
 def variance_of_laplacian(rgb_img):
@@ -49,10 +50,11 @@ def write_values_in_txtfile(path_file, values):
 
 if __name__ == "__main__":
 
-    steps = list(range(100, 600, 5))
+    steps = list(range(5, 300, 5))
 
     # for img_path in list(paths.list_images(path_folder)):
-    for folder in os.listdir(path_folder)[:8]:
+    print(os.listdir(path_folder))
+    for folder in os.listdir(path_folder)[-4:]:
         x = []
         y = []
 
@@ -79,9 +81,17 @@ if __name__ == "__main__":
         # df.to_csv(os.path.join(r"C:\Users\tristan_cotte\PycharmProjects\prior_controller\sharpness", "test_z_x40.csv"))
 
         # plot_sharpness_depending_on_z(sharpness_array=np.array(y), z_positions=x)
-        # sharpest_z = get_sharpest_z(sharpness_array=np.array(y), z_positions=x)
-        # sharpest_img_path = os.path.join(path_folder, str(sharpest_z) + ".jpg")
+        sharpest_z = get_sharpest_z(sharpness_array=np.array(y), z_positions=x)
+        sharpest_img_path = os.path.join(path_folder, folder, str(sharpest_z) + ".jpg")
+
+        # shutil.copy(src = sharpest_img_path, dst = os.path.join(r"C:\Users\tristan_cotte\PycharmProjects\prior_controller\output_picture\images_x40",
+        #                                                         ))
         label = str(folder.split("_")[0]) +"x, " + str(folder.split("_")[1]) + "y"
+
+        dst = os.path.join(r"C:\Users\tristan_cotte\PycharmProjects\prior_controller\output_picture\images_x40",
+                           str(folder.split("_")[0]) +"x_" + str(folder.split("_")[1]) + "y" + "_" + str(sharpest_z)
+                           + "z.jpg")
+        shutil.copy(sharpest_img_path, dst)
 
         plt.plot(x, np.array(y), label=label)
 

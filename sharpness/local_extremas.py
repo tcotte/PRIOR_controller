@@ -34,7 +34,7 @@ def get_sharpest_z(sharpness_array: np.array, z_positions: typing.List,
         return get_nearest_multiple(fr_z, step)
 
     elif len(local_maxima_idx) == 1:
-        return z_positions[local_maxima_idx]
+        return z_positions[np.squeeze(local_maxima_idx)]
 
     else:
         print("There was not one or two local maximas !")

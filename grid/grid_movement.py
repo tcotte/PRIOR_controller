@@ -1,4 +1,4 @@
-from typing import Tuple, Union
+from typing import Tuple, Union, List
 
 import numpy as np
 
@@ -145,11 +145,13 @@ class GridMovement:
                 if self._y + self.img_size[1] >= self._y_lim[1]:
                     self.direction = 2 if self._course == Course().V_RIGHT else 4
                     self.outward_nb += 1
+                    return None, None
                 else:
                     self.y += self._velocity[1]
 
             elif self._direction == 2:  # RIGHT
-                if (self._x % self._recover_x == 0) and not self.change_direction:
+                if (self._x % self._velocity[0] == 0) and not self.change_direction:
+                    # self.x == self.x_lim[0]
                     if self._y == self._y_lim[0]:
                         self.direction = 1
                     else:
@@ -246,16 +248,31 @@ class GridMovement:
                 else:
                     # last outward
                     while not position_reached:
-                        if x - self.img_size[0] <= final_pt[0] and y - self.img_size[1] <= start_pt[1]:
+                        if x - self.img_size[0]*percentage_overlap[0] <= final_pt[0] and \
+                                y - self.img_size[1]*percentage_overlap[1] <= start_pt[1]:
                             position_reached = True
+                        if self._course == Course().V_RIGHT:
+                            self.direction = 3
+
                         x, y = self.move(to=(final_pt[0], start_pt[1]))
                         grid.append([x, y])
             else:
                 x, y = self.move(to=final_pt)
                 print(x, y)
-                grid.append([x, y])
+                if x is not None:
+                    grid.append([x, y])
+                else:
+                    x, y = grid[-1]
 
         return grid
+
+    @staticmethod
+    def remove_duplicate_positions(grid: List) -> List:
+        output_grid = []
+        for idx in range(len(grid) - 1):
+            if grid[idx] != grid[idx + 1]:
+                output_grid.append(grid[idx])
+        return output_grid
 
     @staticmethod
     def get_x_limits(grid):
@@ -304,6 +321,8 @@ def get_prior_coords(prior):
 
 
 if __name__ == "__main__":
-    gm = GridMovement(x=0, y=0, velocity=100, x_lim=(0, 500), y_lim=(0, 500))
+    gm = GridMovement(x=0, y=0, img_size=(4*85, 4*68), x_lim=(0, 1000), y_lim=(0, 1000))
     gm.course = Course().V_RIGHT
-    print(gm.get_grid(start_pt=(0, 0), final_pt=(500, 500), step=100))
+    # gm.recover_x = 1
+    # gm.recover_y = 1
+    print(gm.get_grid(start_pt=(0, 0), final_pt=(1000, 1000), percentage_overlap=(0.5, 0.5)))

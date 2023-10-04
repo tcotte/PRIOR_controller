@@ -3,10 +3,11 @@ import os
 import cv2
 import matplotlib.pyplot as plt
 from natsort import natsort
+import stitching
 from stitching import Stitcher
 from imutils.paths import list_images
 
-path_images = r"C:\Users\tristan_cotte\Downloads\ds0_focused-20230922T113146Z-001\ds0_focused"
+path_images = r"C:\Users\tristan_cotte\Desktop\ds0_focused-20230922T113146Z-001\ds0_focused"
 
 
 def get_filename_from_path(list_images):
@@ -31,6 +32,7 @@ def get_pictures_on_x(x_value, list_images, preset: str = "Z_autofocus_ds2_"):
     filtered_images = [list_images[i] for i in indexes]
     return natsort.natsorted(filtered_images)
 
+
 def get_pictures_on_y(y_value, list_images, preset: str = "Z_autofocus_ds2_"):
     filtered_images = []
     list_filenames = get_filename_from_path(list_images)
@@ -43,7 +45,8 @@ def get_pictures_on_y(y_value, list_images, preset: str = "Z_autofocus_ds2_"):
 
 
 if __name__ == "__main__":
-    stitcher = Stitcher(detector="sift", confidence_threshold=0.01, matches_graph_dot_file="matches_graph.dot")
+    stitcher = Stitcher(detector="sift", confidence_threshold=0.01, matches_graph_dot_file="matches_graph.dot",
+                        try_use_gpu=True, final_megapix=stitching.images.Images.Resolution.LOW.value)
 
     list_images = list(list_images(path_images))
 
@@ -52,6 +55,7 @@ if __name__ == "__main__":
     # print(filtered_images)
 
     panorama_bgr = stitcher.stitch(list_images)
+    print("go")
     panorama_rgb = cv2.cvtColor(panorama_bgr, cv2.COLOR_BGR2RGB)
     plt.imshow(panorama_rgb)
     plt.show()

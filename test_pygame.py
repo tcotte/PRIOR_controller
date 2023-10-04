@@ -15,7 +15,8 @@ from main import PriorController
 
 APP_SIZE = (700, 500)
 GRID = (750, 500)  # width, height -> 1 pixel equals 10 µm
-IMAGE_SIZE = (8.5, 6.8)  # width, height -> camera image size
+# GROSSISSEMENT = 40
+IMAGE_SIZE = (4 * 85, 4 * 68)  # width, height -> camera image size
 RATIO = 76 * 2  # 1 pixel equals to 250 µm
 X_LIMIT = 288000  # microscope's X limit (in µm)
 Y_LIMIT = 80000  # microscope's Y limit (in µm)
@@ -96,7 +97,7 @@ class Window(QMainWindow):
         self.camera_window = IDSCamWindow()
         self.camera_window.show()
         self.camera_window.change_white_balance(2)
-        self.camera_window.change_exp_time(50)
+        self.camera_window.change_exp_time(16)
 
         self.prior = PriorController(port="COM15", baudrate=9600, timeout=0.1)
 
@@ -117,10 +118,7 @@ class Window(QMainWindow):
 
         # setting geometry to the window
 
-        # self.board.minimumSize = QSize(APP_SIZE[0] + 50, APP_SIZE[1] + 50)
         self.board.setFixedSize(QSize(APP_SIZE[0] + 100, APP_SIZE[1] + 100))
-        # self.board.setGeometry(50, 50, APP_SIZE[0] + 50, APP_SIZE[1] + 50)
-        # self.setGeometry(50, 50, 50 + APP_SIZE[0] + self.statusbar.width(), 50+APP_SIZE[1] + self.statusbar.size().height()*3)
 
         # starting the board object
         self.board.start()
@@ -151,8 +149,8 @@ class Board(QFrame):
     SPEED = 1000
 
     # block width and height
-    WIDTHINBLOCKS = IMAGE_SIZE[0]
-    HEIGHTINBLOCKS = IMAGE_SIZE[1]
+    WIDTHINBLOCKS = IMAGE_SIZE[0] / RATIO
+    HEIGHTINBLOCKS = IMAGE_SIZE[1] / RATIO
 
     # constructor
     def __init__(self, parent):
@@ -160,20 +158,23 @@ class Board(QFrame):
 
         self.current_folder = None
         self.sharpness_values = []
-        gm = GridMovement(x=0, y=0, img_size=IMAGE_SIZE, x_lim=(round(0 / RATIO), 15000 / RATIO),
-                          y_lim=(round(0 / RATIO), 15000 / RATIO))
+        # gm = GridMovement(x=0, y=0, img_size=IMAGE_SIZE, x_lim=(round(0 / RATIO), 15000 / RATIO),
+        #                   y_lim=(round(0 / RATIO), 15000 / RATIO))
+        gm = GridMovement(x=0, y=0, img_size=IMAGE_SIZE, x_lim=(0, 2000), y_lim=(0, 2000))
         gm.course = Course().V_RIGHT
-        gm.recover_x = 1
-        gm.recover_y = 1
-        self.grid = gm.get_grid(start_pt=(round(0 / RATIO), round(0 / RATIO)),
-                                final_pt=(round(2e3 / RATIO), round(2e3 / RATIO)), percentage_overlap=(0.1, 0.2))
-        # self.grid = gm.get_grid(start_pt=(round(85000/RATIO), 0), final_pt=(round(114000/RATIO), round(76000/RATIO)),
-        #                        step=11)
-        self.bounding_rec_limits = gm.get_bounding_rec_grid(grid=self.grid)
-        self.bounding_rec_visu = gm.get_bounding_rec_visu()
+        # gm.recover_x = 1
+        # gm.recover_y = 1
+        # self.grid = gm.get_grid(start_pt=(round(0 / RATIO), round(0 / RATIO)),
+        #                         final_pt=(round(2e3 / RATIO), round(2e3 / RATIO)), percentage_overlap=(0.1, 0.2))
+        self.grid = gm.get_grid(start_pt=(0, 0), final_pt=(2000, 2000), percentage_overlap=(0.5, 0.5))
+        print(self.grid)
+
+        self.bounding_rec_limits = [int(round(x / RATIO)) for x in gm.get_bounding_rec_grid(grid=self.grid)]
+        print(self.bounding_rec_limits)
+        self.bounding_rec_visu = [round(x / RATIO) for x in gm.get_bounding_rec_visu()]
 
         self.z_min = 0
-        self.z_max = 500
+        self.z_max = 300
         self.z_step = 5
         self.nb_z_steps = (self.z_max - self.z_min) / self.z_step
         # Avoid division by 0
@@ -210,6 +211,8 @@ class Board(QFrame):
         self.setFocusPolicy(Qt.StrongFocus)
 
         # self.paint_lames()
+
+        # self.sc
 
     def paint_slides(self, painter: QPainter) -> None:
         """
@@ -249,8 +252,11 @@ class Board(QFrame):
         """
         # msg for status bar
         # score = current len - 2
-        self.msg2statusbar.emit(str(tuple([x * RATIO for x in self.grid[0]])))
-        self.parent().prior.coords = tuple([x * RATIO for x in self.grid[0]])
+        self.msg2statusbar.emit(str(tuple([x for x in self.grid[0]])))
+        self.parent().prior.coords = tuple([x for x in self.grid[0]])
+
+        # self.msg2statusbar.emit(str(tuple([x * RATIO for x in self.grid[0]])))
+        # self.parent().prior.coords = tuple([x * RATIO for x in self.grid[0]])
 
         # starting timer
         self.timer.start(Board.SPEED, self)
@@ -288,13 +294,13 @@ class Board(QFrame):
     def draw_previous_lenses(self, painter, color: QColor = QColor(0x228B22)):
         previous_pts = self.grid[:int(np.floor(self.counter / self.nb_z_steps))]
         for pt in previous_pts:
-            painter.fillRect(pt[0], pt[1], self.WIDTHINBLOCKS, self.HEIGHTINBLOCKS, color)
+            painter.fillRect(pt[0] / RATIO, pt[1] / RATIO, self.WIDTHINBLOCKS, self.HEIGHTINBLOCKS, color)
 
     def draw_current_lens(self, painter, color: QColor = QColor(0x228B22)):
         try:
-            x = self.grid[int(np.floor(self.counter / self.nb_z_steps))][0]
-            y = self.grid[int(np.floor(self.counter / self.nb_z_steps))][0]
-            painter.fillRect(x, y, self.WIDTHINBLOCKS, self.HEIGHTINBLOCKS, color)
+            x, y = self.grid[int(np.floor(self.counter / self.nb_z_steps))]
+            print(x, y)
+            painter.fillRect(x / RATIO, y / RATIO, self.WIDTHINBLOCKS, self.HEIGHTINBLOCKS, color)
         except IndexError:
             self.msg2statusbar.emit(str("Grid Finished"
                                         ))
@@ -339,7 +345,7 @@ class Board(QFrame):
         # checking timer id
         if event.timerId() == self.timer.timerId():
             if self.counter % self.nb_z_steps == 0:
-                self.parent().prior.coords = tuple([x * RATIO for x in self.grid[
+                self.parent().prior.coords = tuple([x for x in self.grid[
                     int(np.floor(self.counter / self.nb_z_steps))]])
                 self.current_folder = os.path.join("output_picture/grid x40",
                                                    str(self.parent().prior.x_position) + "_" + str(

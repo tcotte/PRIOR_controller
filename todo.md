@@ -96,3 +96,11 @@ LA DIAGONALE :  z [100, 600]
                 y [0, -17800]
                 x [0, 5624]
 10 points.
+
+
+###################
+0. Revoir la grille
+1. Faire des acquisitions avec des overlaps différents
+2. Explorer PyimageJ -> recreer l'image stitchée en python avec la lib
+3. Faire le test image par image / tout d'un coup -> comparaison
+4. 
