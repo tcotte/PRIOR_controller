@@ -103,4 +103,11 @@ LA DIAGONALE :  z [100, 600]
 1. Faire des acquisitions avec des overlaps différents
 2. Explorer PyimageJ -> recreer l'image stitchée en python avec la lib
 3. Faire le test image par image / tout d'un coup -> comparaison
-4. 
+
+
+###################
+1. colorier les cellules qui ont été passées en vert
+2. Ajouter la la progession dans un module ind
+3. Heure du start run 
+4. depuis cb de temps on a démarré
+5. Transformer le QFrame en vue

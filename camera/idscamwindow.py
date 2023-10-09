@@ -35,7 +35,10 @@ except ImportError:
 
 from ids_peak import ids_peak
 from ids_peak_ipl import ids_peak_ipl
-from ids_peak import ids_peak_ipl_extension
+try:
+    from ids_peak import ids_peak_ipl_extension
+except ImportError:
+    pass
 
 from camera.display import Display
 

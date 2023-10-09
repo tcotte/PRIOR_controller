@@ -94,12 +94,12 @@ class Window(QMainWindow):
 
         self.open_camera_btn = QPushButton("Camera")
 
-        self.camera_window = IDSCamWindow()
-        self.camera_window.show()
-        self.camera_window.change_white_balance(2)
-        self.camera_window.change_exp_time(16)
+        # self.camera_window = IDSCamWindow()
+        # self.camera_window.show()
+        # self.camera_window.change_white_balance(2)
+        # self.camera_window.change_exp_time(16)
 
-        self.prior = PriorController(port="COM15", baudrate=9600, timeout=0.1)
+        # self.prior = PriorController(port="COM15", baudrate=9600, timeout=0.1)
 
         self.statusbar.addPermanentWidget(self.open_camera_btn)
         self.statusbar.addPermanentWidget(self.position_label, 100)
@@ -121,7 +121,7 @@ class Window(QMainWindow):
         self.board.setFixedSize(QSize(APP_SIZE[0] + 100, APP_SIZE[1] + 100))
 
         # starting the board object
-        self.board.start()
+        # self.board.start()
 
         self.connect_actions()
         # showing the main window
@@ -166,7 +166,7 @@ class Board(QFrame):
         # gm.recover_y = 1
         # self.grid = gm.get_grid(start_pt=(round(0 / RATIO), round(0 / RATIO)),
         #                         final_pt=(round(2e3 / RATIO), round(2e3 / RATIO)), percentage_overlap=(0.1, 0.2))
-        self.grid = gm.get_grid(start_pt=(0, 0), final_pt=(2000, 2000), percentage_overlap=(0.5, 0.5))
+        self.grid = gm.get_grid(start_pt=(0, 0), final_pt=(2000, 2000), percentage_non_overlap=(0.5, 0.5))
         print(self.grid)
 
         self.bounding_rec_limits = [int(round(x / RATIO)) for x in gm.get_bounding_rec_grid(grid=self.grid)]
@@ -197,9 +197,6 @@ class Board(QFrame):
 
         # food list
         self.food = []
-
-        # growing is false
-        self.grow_snake = False
 
         # board list
         self.board = []

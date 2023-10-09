@@ -163,8 +163,10 @@ class GridMovement:
                     # self.x == self.x_lim[0]
                     if self._y == self._y_lim[0]:
                         self.direction = 1
+                        return None, None
                     else:
                         self.direction = 3
+                        return None, None
                 else:
                     self.x += self._velocity[0]
 
@@ -173,6 +175,7 @@ class GridMovement:
                 if self._y <= self._y_lim[0]:
                     self.direction = 2 if self._course == Course().V_RIGHT else 4
                     self.outward_nb += 1
+                    return None, None
                 else:
                     self.y -= self._velocity[1]
 
@@ -183,8 +186,10 @@ class GridMovement:
                     #     self.direction = 4
                     if self.x == self.x_lim[0]:
                         self.direction = 2
+                        return None, None
                     else:
                         self.direction = 4
+                        return None, None
 
                 else:
                     self.y += self._velocity
@@ -235,15 +240,22 @@ class GridMovement:
     def stop(self):
         self._direction = 0
 
-    def get_grid(self, start_pt: Tuple[int, int], final_pt: Tuple[int, int], percentage_overlap: Union[Tuple, float]):
+    def get_grid(self, start_pt: Tuple[int, int], final_pt: Tuple[int, int], percentage_non_overlap: Union[Tuple, float]):
         self.final_pt = final_pt
         self.start_pt = start_pt
 
         self.y_lim = [start_pt[1], final_pt[1]]
         self.x_lim = [start_pt[0], final_pt[0]]
 
-        self.velocity = percentage_overlap
-        self.velocity = percentage_overlap
+        # if isinstance(percentage_overlap, Tuple):
+        #     percentage_overlap = list(percentage_overlap)
+        #     percentage_overlap[0] = 1 - percentage_overlap[0]
+        #     percentage_overlap[1] = 1 - percentage_overlap[1]
+        # else:
+        #     percentage_overlap = 1 - percentage_overlap
+
+        self.velocity = percentage_non_overlap
+
         position_reached = False
         grid = []
         self.x, self.y = self.start_pt
@@ -258,14 +270,17 @@ class GridMovement:
                 else:
                     # last outward
                     while not position_reached:
-                        if x - self.img_size[0]*percentage_overlap[0] <= final_pt[0] and \
-                                y - self.img_size[1]*percentage_overlap[1] <= start_pt[1]:
+                        if x - self.img_size[0] * percentage_non_overlap[0] <= final_pt[0] and \
+                                y - self.img_size[1] * percentage_non_overlap[1] <= start_pt[1]:
                             position_reached = True
                         if self._course == Course().V_RIGHT:
                             self.direction = 3
 
                         x, y = self.move(to=(final_pt[0], start_pt[1]))
-                        grid.append([x, y])
+                        if x is not None:
+                            grid.append([x, y])
+                        else:
+                            x, y = grid[-1]
             else:
                 x, y = self.move(to=final_pt)
                 print(x, y)
@@ -306,6 +321,22 @@ class GridMovement:
             return self.start_pt[0], self.start_pt[1], self.final_pt[0], self.final_pt[1]
 
 
+def get_bounding_rec_grid(grid, img_size):
+    x_min, x_max = get_x_limits(grid)
+    y_min, y_max = get_y_limits(grid)
+    return x_min, y_min, x_max + img_size[0], y_max + img_size[1]
+
+
+def get_x_limits(grid):
+    np_grid = np.array(grid)
+    return min(np_grid[:, 0]), max(np_grid[:, 0])
+
+
+def get_y_limits(grid):
+    np_grid = np.array(grid)
+    return min(np_grid[:, 1]), max(np_grid[:, 1])
+
+
 def position_done(last_bbox, current_bbox):
     # position down
     if last_bbox[0] == current_bbox[0]:
@@ -331,8 +362,8 @@ def get_prior_coords(prior):
 
 
 if __name__ == "__main__":
-    gm = GridMovement(x=0, y=0, img_size=(4*85, 4*68), x_lim=(0, 1000), y_lim=(0, 1000))
+    gm = GridMovement(x=0, y=0, img_size=(4 * 85, 4 * 68), x_lim=(0, 1000), y_lim=(0, 1000))
     gm.course = Course().V_RIGHT
     # gm.recover_x = 1
     # gm.recover_y = 1
-    print(gm.get_grid(start_pt=(0, 0), final_pt=(1000, 1000), percentage_overlap=(0.5, 0.5)))
+    print(gm.get_grid(start_pt=(0, 0), final_pt=(1000, 1000), percentage_non_overlap=(0.5, 0.5)))

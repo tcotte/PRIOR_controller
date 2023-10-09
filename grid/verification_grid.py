@@ -5,18 +5,28 @@ import numpy as np
 from grid.grid_movement import GridMovement, Course
 
 
-def draw_square(img_size, pt, m, rgb_color = (0, 0, 0)):
+def draw_square_contours(img_size, pt, m, rgb_color = (0, 0, 0), thickness=0):
     x0 = pt[0]
     y0 = pt[1]
     x1 = pt[0] + img_size[0]
     y1 = pt[1] + img_size[1]
 
-
+    # if thickness == 0:
     m[y0, x0: x1] = rgb_color
     m[y1, x0: x1] = rgb_color
     m[y0: y1, x0] = rgb_color
     m[y0: y1, x1] = rgb_color
 
+    if thickness > 0:
+        for t in range(thickness):
+            m[y0 + t, x0: x1] = rgb_color
+            m[y1 + t, x0: x1] = rgb_color
+            m[y0: y1, x0 + t] = rgb_color
+            m[y0: y1, x1 + t] = rgb_color
+            m[y0 - t, x0: x1] = rgb_color
+            m[y1 - t, x0: x1] = rgb_color
+            m[y0: y1, x0 - t] = rgb_color
+            m[y0: y1, x1 - t] = rgb_color
     # m[pt[1] , pt[0]: pt[0] + img_size[0]] = 255
     # m[pt[0], pt[1]: pt[1] + img_size[1]] = 255
     # m[pt[0]:pt[0] + img_size[0], pt[1]:pt[1] + img_size[1]] = 255
@@ -39,7 +49,7 @@ def draw_bouding_rect(bounding_rect, m):
 img_size = (4*85, 4*68)
 gm = GridMovement(x=0, y=0, img_size=img_size, x_lim=(0, 5000), y_lim=(0, 5000))
 gm.course = Course().V_RIGHT
-grid = gm.get_grid(start_pt=(0, 0), final_pt=(1000, 1000), percentage_overlap=(0.4, 0.4))
+grid = gm.get_grid(start_pt=(0, 0), final_pt=(1000, 1000), percentage_non_overlap=(0.4, 0.4))
 
 bounding_rect = list(gm.get_bounding_rec_grid(grid))
 
@@ -47,7 +57,7 @@ bounding_rect[2] += img_size[0]
 bounding_rect[3] += img_size[1]
 print(bounding_rect)
 
-m=np.ones((bounding_rect[3] +1 , bounding_rect[2] +1, 3), dtype=np.uint8)*255
+m=np.ones((bounding_rect[3] + 10 , bounding_rect[2] + 10, 3), dtype=np.uint8)*255
 m = draw_bouding_rect((0, 0, 1000, 1000), m)
 
 
@@ -71,7 +81,7 @@ for point in grid:
 
     # Putting the image back to its position
     m[point[1]:point[1] + img_size[1], point[0]:point[0] + img_size[0]] = res
-    m = draw_square(img_size, point, m)
+    m = draw_square_contours(img_size, point, m, thickness=3)
 
 m = m.astype(int)
 
