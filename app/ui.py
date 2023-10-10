@@ -1,12 +1,11 @@
 import sys
 import threading
 import typing
-from functools import partial
 from time import sleep
 
 import qdarkstyle
 import qtawesome as qta
-from PyQt5 import QtGui
+from PyQt5 import QtGui, QtCore
 from PyQt5.QtCore import QSize, Qt, QObject, pyqtSignal, QThread
 from PyQt5.QtGui import QFont, QKeyEvent
 from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QLCDNumber, \
@@ -154,8 +153,10 @@ class DirectionalButtons(QWidget):
 
 
 class XYHandler(QWidget):
-    def __init__(self, parent):
+    def __init__(self, parent, contracted_widget: bool = False):
         super().__init__(parent)
+
+        self._contracted_widget = contracted_widget
 
         # arrows
         # speed
@@ -195,15 +196,16 @@ class XYHandler(QWidget):
         layout.addLayout(h_layout)
         layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
         layout.addLayout(layout_btn)
-        layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
-        layout.addWidget(QHLine())
-        layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
-        layout.addWidget(speed_label)
-        layout.addWidget(self.speed_slider)
-        layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
-        layout.addWidget(acceleration_label)
-        layout.addWidget(self.acceleration_slider)
-        layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        if not self._contracted_widget:
+            layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
+            layout.addWidget(QHLine())
+            layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
+            layout.addWidget(speed_label)
+            layout.addWidget(self.speed_slider)
+            layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
+            layout.addWidget(acceleration_label)
+            layout.addWidget(self.acceleration_slider)
+            layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         self.setLayout(layout)
 
@@ -291,8 +293,9 @@ class XYHandler(QWidget):
 
 
 class ZHandler(QWidget):
-    def __init__(self, parent):
+    def __init__(self, parent, contracted_widget: bool = False):
         super().__init__(parent)
+        self._contracted_widget = contracted_widget
 
         # arrows
         # speed
@@ -333,15 +336,16 @@ class ZHandler(QWidget):
         layout.addLayout(h_layout)
         layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
         layout.addLayout(layout_btn)
-        layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
-        layout.addWidget(QHLine())
-        layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
-        layout.addWidget(speed_label)
-        layout.addWidget(self.speed_slider)
-        layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
-        layout.addWidget(acceleration_label)
-        layout.addWidget(self.acceleration_slider)
-        layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        if not self._contracted_widget:
+            layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
+            layout.addWidget(QHLine())
+            layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
+            layout.addWidget(speed_label)
+            layout.addWidget(self.speed_slider)
+            layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
+            layout.addWidget(acceleration_label)
+            layout.addWidget(self.acceleration_slider)
+            layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         self.setLayout(layout)
 
@@ -349,8 +353,8 @@ class ZHandler(QWidget):
         self.display()
 
         # Construct
-        self.acceleration_slider.setValue(self.prior.z_controller.acceleration)
-        self.speed_slider.setValue(self.prior.z_controller.speed)
+        # self.acceleration_slider.setValue(self.prior.z_controller.acceleration)
+        # self.speed_slider.setValue(self.prior.z_controller.speed)
 
     def connect_actions(self) -> None:
         self.go_to_btn.clicked.connect(self.open_absolute_position_window)
@@ -453,9 +457,9 @@ class DisplayCurrentValues(QWidget):
 
         layout = QHBoxLayout(frame)
 
-        self.x_dv = DisplayValue("X")
-        self.y_dv = DisplayValue("Y")
-        self.z_dv = DisplayValue("Z")
+        self.x_dv = DisplayValue("X", parent=self)
+        self.y_dv = DisplayValue("Y", parent=self)
+        self.z_dv = DisplayValue("Z", parent=self)
 
         layout.addWidget(self.x_dv)
         layout.addWidget(self.y_dv)
@@ -516,7 +520,8 @@ class DisplayCurrentValues(QWidget):
 
 
 class DisplayValue(QWidget):
-    def __init__(self, key: str):
+    def __init__(self, key: str, parent=None):
+        self.parent = parent
         super().__init__()
         self._value = None
 
@@ -547,10 +552,18 @@ class DisplayValue(QWidget):
 
         self.display()
 
+    def resize(self, a0: QtCore.QSize) -> None:
+        self.display()
+
     def display(self):
+        if self.parent is not None:
+            print(self.parent.size())
+
+        print(self.parent.size())
+
         self.setContentsMargins(0, 0, 0, 0)
-        self.setFixedWidth(400)
-        self.setFixedHeight(90)
+        self.setFixedWidth(round(self.parent.size().width()/(640/400)))
+        self.setFixedHeight(round(self.parent.size().height()/(480/90)))
         self.setStyleSheet(
             """
             QLabel {

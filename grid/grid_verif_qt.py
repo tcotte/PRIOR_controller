@@ -220,7 +220,7 @@ class Window(QWidget):
 
             # Putting the image back to its position
             m[point[1]:point[1] + IMAGE_SIZE[1], point[0]:point[0] + IMAGE_SIZE[0]] = res
-            print(int(np.floor(np.sqrt(bounding_rect[2]) / 15)))
+
             m = draw_square_contours(IMAGE_SIZE, point, m, thickness=int(np.floor(np.sqrt(bounding_rect[2]) / 15)))
 
         image = m.astype(int)

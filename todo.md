@@ -111,3 +111,8 @@ LA DIAGONALE :  z [100, 600]
 3. Heure du start run 
 4. depuis cb de temps on a démarré
 5. Transformer le QFrame en vue
+
+
+
+400 -> 640
+100 -> 640*100/400 = 640/4 = 460

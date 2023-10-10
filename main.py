@@ -6,8 +6,8 @@ import typing
 
 import serial
 
-X_DIRECTION = 1
-Y_DIRECTION = 1
+X_DIRECTION = -1
+Y_DIRECTION = -1
 
 
 def decode(l):
@@ -158,6 +158,8 @@ class ZAxis:
             answer = int(answer)
         except:
             Error(feature=sys._getframe().f_code.co_name, response=answer)
+
+        # print("acceleration" 9answer)
         assert 4 <= answer <= 100, "Acceleration value is not in range [4 - 100]"
         return answer
 
