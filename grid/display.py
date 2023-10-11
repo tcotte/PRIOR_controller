@@ -100,7 +100,7 @@ class Display(QGraphicsView):
         rect = QRectF(A, B)
         return(rect)
 
-    def adaptView(self, resize_event):
+    def adaptView(self):
         self.fitView()
         self.viewScaled.emit()
 
@@ -109,15 +109,15 @@ class Display(QGraphicsView):
         self.fitInView(rect, Qt.KeepAspectRatio)
         self.zoom_level = 0
 
-    # @pyqtSlot(QImage)
-    # def on_image_received(self, image: QImage):
-    #     self.scene.set_image(image)
-    #     self.update()
+    @pyqtSlot(QImage)
+    def on_image_received(self, image: QImage):
+        self.scene().set_image(image)
+        self.update()
 
-    # def on_new_image_flux(self):
-    #     self.fitView()
-    #     self.visible_rect = self.getVisibleRect()
-    #     self.zoom_max = 25
+    def on_new_image_flux(self):
+        self.fitView()
+        self.visible_rect = self.getVisibleRect()
+        self.zoom_max = 25
 
     @staticmethod
     def convertQImageToMat(incoming_image: QImage):
@@ -141,7 +141,8 @@ class Display(QGraphicsView):
         Get the raw picture displayed on the QGraphicsView
         :return: OPenCV RGB picture
         """
-        image = self.scene.get_image()
+        image = self.scene().get_image()
+        # image = QImage()
         return self.convertQImageToMat(image)
 
     ### Event Handler ###
@@ -151,7 +152,7 @@ class Display(QGraphicsView):
         super(Display, self).enterEvent(event)
 
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
-        self.adaptView(event)
+        self.adaptView()
         super(Display, self).resizeEvent(event)
 
     def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:

@@ -20,27 +20,22 @@
 # General permission to copy or modify is hereby granted.
 
 import sys
+from importlib.metadata import version
 
 import cv2
 import numpy as np
-
-try:
-    from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QLabel, QMainWindow, QMessageBox, QWidget, QPushButton
-    from PyQt5.QtGui import QImage
-    from PyQt5.QtCore import Qt, Slot, QTimer
-except ImportError:
-    from PyQt5.QtWidgets import QHBoxLayout, QVBoxLayout, QLabel, QMainWindow, QMessageBox, QWidget
-    from PyQt5.QtGui import QImage
-    from PyQt5.QtCore import Qt, QTimer
-
+from PyQt5.QtCore import QTimer, QRectF
+from PyQt5.QtGui import QImage
+from PyQt5.QtWidgets import QVBoxLayout, QMessageBox, QWidget, QPushButton
 from ids_peak import ids_peak
 from ids_peak_ipl import ids_peak_ipl
-try:
-    from ids_peak import ids_peak_ipl_extension
-except ImportError:
-    pass
+from packaging.version import parse as parse_version
 
-from camera.display import Display
+from camera.display import CustomGraphicsScene
+from grid.display import Display
+
+if parse_version(version('ids_peak')) > parse_version('1.6'):
+    from ids_peak import ids_peak_ipl_extension
 
 VERSION = "1.2.0"
 FPS_LIMIT = 30
@@ -92,9 +87,16 @@ class IDSCamWindow(QWidget):
             try:
                 # Create a display for the camera image
                 self.display = Display()
-                self.__layout.addWidget(self.display)
+
+                self.scene = CustomGraphicsScene(self.display)
+                self.scene_rec = self.scene.sceneRect()
+                self.display.setScene(self.scene)
+
                 if not self.__start_acquisition():
                     QMessageBox.critical(self, "Unable to start acquisition!", QMessageBox.Ok)
+                else:
+                    self.__layout.addWidget(self.display)
+
             except Exception as e:
                 QMessageBox.critical(self, "Exception", str(e), QMessageBox.Ok)
 
@@ -105,9 +107,7 @@ class IDSCamWindow(QWidget):
         self.photo_btn = QPushButton("Photo")
         self.photo_btn.clicked.connect(self.capture_png)
 
-        self.__create_statusbar()
-
-        self.setMinimumSize(700, 500)
+        self.setMinimumSize(350, 250)
 
     def __del__(self):
         self.__destroy_all()
@@ -121,8 +121,8 @@ class IDSCamWindow(QWidget):
         ids_peak.Library.Close()
 
     def capture_png(self, picture_path: str) -> None:
-        q_img = self.display.get_image()
-        np_img = convertQImageToMat(incoming_image=q_img)
+        np_img = self.display.get_image()
+        # np_img = convertQImageToMat(incoming_image=q_img)
 
         cv2.imwrite(picture_path, np_img)
 
@@ -318,39 +318,12 @@ class IDSCamWindow(QWidget):
         except Exception as e:
             QMessageBox.information(self, "Exception", str(e), QMessageBox.Ok)
 
-    def __create_statusbar(self):
-        status_bar = QWidget()
-        status_bar_layout = QHBoxLayout()
-        status_bar_layout.setContentsMargins(0, 0, 0, 0)
-
-        status_bar_layout.addWidget(self.photo_btn)
-
-        self.__label_infos = QLabel(status_bar)
-        self.__label_infos.setAlignment(Qt.AlignLeft)
-        status_bar_layout.addWidget(self.__label_infos)
-        status_bar_layout.addStretch()
-
-        self.__label_version = QLabel(status_bar)
-        self.__label_version.setText("simple_live_qtwidgets v" + VERSION)
-        self.__label_version.setAlignment(Qt.AlignRight)
-        status_bar_layout.addWidget(self.__label_version)
-
-        self.__label_aboutqt = QLabel(status_bar)
-        self.__label_aboutqt.setObjectName("aboutQt")
-        self.__label_aboutqt.setText("<a href='#aboutQt'>About Qt</a>")
-        self.__label_aboutqt.setAlignment(Qt.AlignRight)
-        self.__label_aboutqt.linkActivated.connect(self.on_aboutqt_link_activated)
-        status_bar_layout.addWidget(self.__label_aboutqt)
-        status_bar.setLayout(status_bar_layout)
-
-        self.__layout.addWidget(status_bar)
-
-    def update_counters(self):
-        """
-        This function gets called when the frame and error counters have changed
-        :return:
-        """
-        self.__label_infos.setText("Acquired: " + str(self.frame_counter) + ", Errors: " + str(self.__error_counter))
+    # def update_counters(self):
+    #     """
+    #     This function gets called when the frame and error counters have changed
+    #     :return:
+    #     """
+    #     self.__label_infos.setText("Acquired: " + str(self.frame_counter) + ", Errors: " + str(self.__error_counter))
 
     def on_acquisition_timer(self):
         """
@@ -361,7 +334,17 @@ class IDSCamWindow(QWidget):
             buffer = self.__datastream.WaitForFinishedBuffer(5000)
 
             # Create IDS peak IPL image for debayering and convert it to RGBa8 format
-            ipl_image = ids_peak_ipl_extension.BufferToImage(buffer)
+            if parse_version(version('ids_peak')) < parse_version('1.6'):
+                # Create IDS peak IPL image for debayering and convert it to RGB8 format
+                ipl_image = ids_peak_ipl.Image_CreateFromSizeAndBuffer(
+                    buffer.PixelFormat(),
+                    buffer.BasePtr(),
+                    buffer.Size(),
+                    buffer.Width(),
+                    buffer.Height()
+                )
+            else:
+                ipl_image = ids_peak_ipl_extension.BufferToImage(buffer)
             converted_ipl_image = ipl_image.ConvertTo(ids_peak_ipl.PixelFormatName_BGRa8)
 
             # Queue buffer so that it can be used again
@@ -382,13 +365,15 @@ class IDSCamWindow(QWidget):
 
             # Increase frame counter
             self.frame_counter += 1
+
+            if self.scene.sceneRect() != self.scene_rec:
+                self.scene_rec = self.scene.sceneRect()
+                self.display.on_new_image_flux()
+
+
         except ids_peak.Exception as e:
             self.__error_counter += 1
             print("Exception: " + str(e))
 
         # Update counters
-        self.update_counters()
-
-    def on_aboutqt_link_activated(self, link):
-        if link == "#aboutQt":
-            QMessageBox.aboutQt(self, "About Qt")
+        # self.update_counters()

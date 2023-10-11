@@ -10,6 +10,7 @@ from PyQt5.QtWidgets import *
 
 from app.contracted_ui import PriorMovement
 from app.ui import RealTimeCoordWorker
+from camera.idscamwindow import IDSCamWindow
 from grid.display import Display
 from grid.grid_movement import GridMovement, Course, get_bounding_rec_grid
 from grid.several_grid_handler import GridsHandler
@@ -227,6 +228,12 @@ class myWindow(QMainWindow):
         self.grids_setup = GridsHandler(parent=self)
         # self.dockedWidget.setParent(self)
         docked.setWidget(self.grids_setup)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, docked)
+
+        docked = QDockWidget("Dockable")
+        self.ids_cam_window = IDSCamWindow()
+        # self.dockedWidget.setParent(self)
+        docked.setWidget(self.ids_cam_window)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, docked)
 
         # self.prior = PriorController(port="COM15", baudrate=9600, timeout=0.1)

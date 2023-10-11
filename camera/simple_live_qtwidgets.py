@@ -25,6 +25,8 @@
 
 import sys
 
+import qdarkstyle
+
 try:
     from PyQt5.QtWidgets import QApplication
 except ImportError:
@@ -35,6 +37,7 @@ from idscamwindow import IDSCamWindow
 
 def main():
     a = QApplication(sys.argv)
+    a.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt5'))
     w = IDSCamWindow()
     w.show()
 

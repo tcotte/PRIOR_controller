@@ -25,14 +25,10 @@
 
 import math
 
-try:
-    from PyQt5.QtWidgets import QGraphicsView, QGraphicsScene, QWidget
-    from PyQt5.QtGui import QImage, QPainter
-    from PyQt5.QtCore import QRectF, Slot
-except ImportError:
-    from PyQt5.QtWidgets import QGraphicsView, QGraphicsScene, QWidget
-    from PyQt5.QtGui import QImage, QPainter
-    from PyQt5.QtCore import QRect
+
+from PyQt5.QtWidgets import QGraphicsView, QGraphicsScene, QWidget
+from PyQt5.QtGui import QImage, QPainter
+from PyQt5.QtCore import QRectF, pyqtSignal
 
 
 class Display(QGraphicsView):
@@ -50,44 +46,84 @@ class Display(QGraphicsView):
 
 
 class CustomGraphicsScene(QGraphicsScene):
-    def __init__(self, parent: Display = None):
-        super().__init__(parent)
-        self.__parent = parent
-        self.__image = QImage()
 
-    def set_image(self, image: QImage):
-        self.__image = image
+    backgroundUpdate = pyqtSignal(float, float)
+
+    def __init__(self, parent=None):
+        super(CustomGraphicsScene, self).__init__(parent)
+        self.parent = parent
+        self.image = QImage()
+
+        self.view_width = 1
+        self.view_height = 1
+        self.image_ratio = 1
+
+        self.setItemIndexMethod(QGraphicsScene.NoIndex)
+
+    def debug(self):
+        print('letsgo')
+
+    def set_image(self, image: QImage) -> None:
+        self.image = image
+        image_width, image_height = self.getImageSize()
+        self.image_ratio = image_width / image_height
         self.update()
 
+    def getImageRatio(self):
+        return(self.image_ratio)
+
+    def getImageSize(self):
+        return self.image.width(), self.image.height()
+
+    def getZoomState(self):
+        return(self.parent.getZoomState())
+
     def get_image(self):
-        return self.__image
+        """
+        Get the raw picture displayed on the QGraphicsScene
+        :return: OPenCV RGB picture
+        """
+        return self.image.copy()
 
-    def drawBackground(self, painter: QPainter, rect: QRectF):
-        # Display size
-        display_width = self.__parent.width()
-        display_height = self.__parent.height()
+    def getRealImageSize(self):
+        try:
+            binning = self.parent.parent.camera.nodemap_remote_device.FindNode("BinningHorizontal").Value()
+        except:
+            binning = 1
+        try:
+            decimation = self.parent.parent.camera.nodemap_remote_device.FindNode("DecimationHorizontal").Value()
+        except:
+            decimation = 1
 
+        return(self.image.size().width() * binning * decimation, self.image.size().height() * binning * decimation)
+
+    def getBinningRatio(self):
+        scene_resolution = self.get_bckgd_size()
+        max_resolution = self.getRealImageSize()
+        return(max_resolution[0] / scene_resolution[0])
+
+    def get_bckgd_size(self) -> [float, float]:
+        """
+        Get the background size in function of the display and the camera image sizes. No matter the sizes, the scene
+        has to keep the aspect ratio of the camera picture.
+        :return: image scene width, image scene height
+        """
         # Image size
-        image_width = self.__image.width()
-        image_height = self.__image.height()
+        image_width = self.image.width()
+        image_height = self.image.height()
 
-        # Return if we don't have an image yet
         if image_width == 0 or image_height == 0:
-            return
+            print("no img")
+            return 1, 1
 
-        # Calculate aspect ratio of display
-        ratio1 = display_width / display_height
-        # Calculate aspect ratio of image
-        ratio2 = image_width / image_height
+        return image_width, image_height
 
-        if ratio1 > ratio2:
-            # The height with must fit to the display height.So h remains and w must be scaled down
-            image_width = display_height * ratio2
-            image_height = display_height
-        else:
-            # The image with must fit to the display width. So w remains and h must be scaled down
-            image_width = display_width
-            image_height = display_height / ratio2
+    def computeSceneRect(self) -> QRectF:
+        """
+        Gives the SceneRect that should be used according to the current image flux
+        :return: QRectF
+        """
+        image_width, image_height = self.get_bckgd_size()
 
         image_pos_x = -1.0 * (image_width / 2.0)
         image_pox_y = -1.0 * (image_height / 2.0)
@@ -96,6 +132,43 @@ class CustomGraphicsScene(QGraphicsScene):
         image_pos_x = math.trunc(image_pos_x)
         image_pox_y = math.trunc(image_pox_y)
 
-        rect = QRectF(image_pos_x, image_pox_y, image_width, image_height)
+        return QRectF(image_pos_x, image_pox_y, image_width, image_height)
 
-        painter.drawImage(rect, self.__image)
+    def drawBackground(self, painter: QPainter, rect: QRectF) -> None:
+        """
+        Paint the scene background with the camera picture respecting its aspect ratio.
+
+        The point (0, 0) will be the middle of the scene -> point '0' in the picture below.
+        The point (-iw /2, -ih /2) wil be the top corner of the scene ->  point 'A' in the picture below.
+        The point (+iw /2, +ih /2) wil be the top corner of the scene ->  point 'D' in the picture below.
+
+        A -------------------- |
+        |                      |
+        |          0           |
+        |                      |
+        | -------------------- D
+
+        With :
+        - iw -> image width
+        - ih -> image height
+
+        :param painter:
+        :param rect:
+        """
+        rect = self.computeSceneRect()
+        painter.drawImage(rect, self.image)
+
+        self.backgroundUpdate.emit(rect.width(), rect.height())
+        self.setSceneRect(rect)
+
+        # Visualisation du viewport
+        #painter.setPen(QtGui.QColor(0,0,255,255))
+        #painter.drawRect(self.parent.visible_rect)
+
+        #painter.drawPoint(self.parent.getVisibleRect().center())
+
+    def print_dimensions(self) -> None:
+        image_width, image_height = self.get_bckgd_size()
+        print('img : ', image_width, image_height)
+        print('scene : ', self.width(), self.height())
+
