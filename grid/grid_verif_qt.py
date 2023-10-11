@@ -13,6 +13,7 @@ from PyQt5.QtWidgets import QGraphicsScene, QGraphicsView, QApplication, QGraphi
     QWidget, QHBoxLayout, QDockWidget, QVBoxLayout, QPushButton, QMainWindow, QButtonGroup, QRadioButton, QLabel, \
     QSpinBox, QMessageBox, QShortcut, QProgressBar
 
+from grid.display import Display
 from grid.grid_movement import Course, GridMovement, get_bounding_rec_grid
 from grid.verification_grid import draw_square_contours
 
@@ -151,7 +152,8 @@ class Window(QWidget):
         self.setMinimumHeight(500)
 
         self.scene = QGraphicsScene()
-        self.view = QGraphicsView(self.scene)
+        self.view = Display()
+        self.view.setScene(self.scene)
         # self.view.setMinimumWidth(600)
         # self.view.setMinimumWidth(500)
         # self.draw_lens()

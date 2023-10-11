@@ -1,4 +1,5 @@
 import sys
+from typing import Union
 
 import qdarkstyle
 from PyQt5 import QtGui
@@ -11,7 +12,7 @@ from main import PriorController
 
 
 class PriorMovement(QWidget):
-    def __init__(self, prior: PriorController):
+    def __init__(self, prior: Union[PriorController, None]):
         super().__init__()
         self._x = None
         self._y = None

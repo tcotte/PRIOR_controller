@@ -10,6 +10,7 @@ from PyQt5.QtWidgets import *
 
 from app.contracted_ui import PriorMovement
 from app.ui import RealTimeCoordWorker
+from grid.display import Display
 from grid.grid_movement import GridMovement, Course, get_bounding_rec_grid
 from grid.several_grid_handler import GridsHandler
 from grid.share_serial import SerialSingleton, Y_LIMIT, X_LIMIT
@@ -208,7 +209,7 @@ class myWindow(QMainWindow):
         self._x = None
         self._y = None
 
-        self.graphics_view = QGraphicsView()
+        self.graphics_view = Display()
 
         self.scene = QGraphicsScene()
         self.scene.setSceneRect(-10000, -5000, 135000, Y_LIMIT + 10000)
@@ -228,12 +229,23 @@ class myWindow(QMainWindow):
         docked.setWidget(self.grids_setup)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, docked)
 
-        self.prior = PriorController(port="COM15", baudrate=9600, timeout=0.1)
+        # self.prior = PriorController(port="COM15", baudrate=9600, timeout=0.1)
+        self.hide_show_axis_shortcut = QShortcut(QKeySequence("Ctrl+H"), self)
 
         self.connect_actions()
 
     def connect_actions(self):
         self.grids_setup.grid_starting_points.connect(self.generate_grids)
+        self.hide_show_axis_shortcut.activated.connect(self.hide_show_axis)
+
+    def hide_show_axis(self):
+        filter_axis_item = filter(lambda item: isinstance(item, QGraphicsItemGroup) and item.data(0) == "axis",
+                                  self.scene.items())
+        list_axis_item = list(filter_axis_item)
+        if len(list_axis_item) > 0:
+            axis_item = list_axis_item[0]
+            visible_status = axis_item.isVisible()
+            axis_item.setVisible(not visible_status)
 
     def generate_grids(self, grids):
         if self.grids is not None:
@@ -359,6 +371,7 @@ class myWindow(QMainWindow):
 
     def draw_axis(self):
         axis_layer = QGraphicsItemGroup()
+        axis_layer.setData(0, "axis")
 
         io = QGraphicsTextItem()
         io.setPos(-4000, -4000)
