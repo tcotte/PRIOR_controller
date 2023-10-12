@@ -15,6 +15,8 @@ from superqt import QLabeledSlider
 
 from app.go_to_windows import GoToXY, GoToZ
 from app.ui_utils import QHLine, AnimatedOnHoverButton, TitleSectionLabel, FormLabel, LongClickButton
+from app.utils.directional_buttons import DirectionalButtons, Directions
+from app.utils.positions_displayer import DisplayCurrentValues
 from main import PriorController
 
 lock = threading.Lock()
@@ -36,120 +38,7 @@ def locked_thread(function):
     return wrapper
 
 
-class Directions:
-    LEFT = 1
-    RIGHT = 2
-    UP = 3
-    DOWN = 4
 
-
-class DirectionalButtons(QWidget):
-    def __init__(self, size_btn: typing.Union[int, None] = None, only_two: bool = False):
-        super().__init__()
-        if size_btn is None:
-            size_btn = 100
-        self.radius = round(size_btn / 2)
-
-        self.only_two = only_two
-
-        up_icon = qta.icon('ri.arrow-up-s-line')
-        self.up_button = LongClickButton(up_icon, '')
-        self.up_button.setFixedSize(QSize(size_btn, size_btn))
-        self.up_button.setIconSize(QSize(round(size_btn), round(size_btn)))
-        self.up_button.setObjectName('up')
-
-        down_icon = qta.icon('ri.arrow-down-s-line')
-        self.down_button = LongClickButton(down_icon, '')
-        self.down_button.setFixedSize(QSize(size_btn, size_btn))
-        self.down_button.setIconSize(QSize(round(size_btn), round(size_btn)))
-        self.down_button.setObjectName('down')
-
-        if not only_two:
-            left_icon = qta.icon('ri.arrow-left-s-line')
-            self.left_button = LongClickButton(left_icon, '')
-            self.left_button.setFixedSize(QSize(size_btn, size_btn))
-            self.left_button.setIconSize(QSize(round(size_btn), round(size_btn)))
-            self.left_button.setObjectName('left')
-
-            right_icon = qta.icon('ri.arrow-right-s-line')
-            self.right_button = LongClickButton(right_icon, '')
-            self.right_button.setFixedSize(QSize(size_btn, size_btn))
-            self.right_button.setIconSize(QSize(round(size_btn), round(size_btn)))
-            self.right_button.setObjectName('right')
-
-        layout = QGridLayout()
-        layout.setObjectName('layout')
-        layout.addWidget(self.up_button, 0, 1, 1, 1)
-        if not only_two:
-            layout.addWidget(self.left_button, 1, 0, 1, 1)
-            layout.addWidget(self.right_button, 1, 2, 1, 1)
-        else:
-            space = QWidget()
-            space.setFixedSize(QSize(size_btn, size_btn))
-            layout.addWidget(space, 1, 0, 1, 1)
-        layout.addWidget(self.down_button, 2, 1, 1, 1)
-
-        layout.setSizeConstraint(QLayout.SetFixedSize)
-        self.setLayout(layout)
-
-        self.display()
-
-        self.connect_actions()
-
-    def connect_actions(self):
-        if not self.only_two:
-            list_btns = [self.up_button, self.left_button, self.right_button, self.down_button]
-        else:
-            list_btns = [self.up_button, self.down_button]
-
-        for btn in list_btns:
-            btn.clicked.connect(lambda: self.setFocus())
-
-    def keyPressEvent(self, e: QKeyEvent) -> None:
-        key_right = 16777236
-        key_left = 16777234
-        key_up = 16777235
-        key_down = 16777237
-
-        if not self.only_two:
-            if e.key() == key_down:
-                self.down_button.animateClick()
-            elif e.key() == key_up:
-                self.up_button.animateClick()
-            elif e.key() == key_right:
-                self.right_button.animateClick()
-            elif e.key() == key_left:
-                self.left_button.animateClick()
-        else:
-            if e.key() == key_down:
-                self.down_button.animateClick()
-            elif e.key() == key_up:
-                self.up_button.animateClick()
-
-        super().keyPressEvent(e)
-
-    def display(self):
-        self.setStyleSheet(
-            """
-            QPushButton {
-            display: inline-block;
-            background-color: #4CAF50;
-            
-            color: #fff;
-            text-align: center;
-
-            text-decoration: none;
-            border-radius: %s;
-            }     
-            
-            QPushButton:hover {
-                background-color: #6ccc70;
-            }
-            
-            QPushButton:pressed {
-                background-color: #b7c4b7;     
-            }
-            """ % (str(self.radius)))
 
 
 class XYHandler(QWidget):
@@ -217,12 +106,12 @@ class XYHandler(QWidget):
         self.speed_slider.setValue(self.convert_prior_speed_2_mms(self.main_window.prior.speed))
 
     def convert_prior_speed_2_mms(self, value_ps):
-        ratio_ps_mms = 100/8
-        return value_ps/ratio_ps_mms
+        ratio_ps_mms = 100 / 8
+        return value_ps / ratio_ps_mms
 
     def convert_mms_2_prior_speed(self, value_mms):
-        ratio_ps_mms = 100/8
-        return value_mms*ratio_ps_mms
+        ratio_ps_mms = 100 / 8
+        return value_mms * ratio_ps_mms
 
     def connect_actions(self) -> None:
         self.go_to_btn.clicked.connect(self.open_absolute_position_window)
@@ -325,7 +214,6 @@ class ZHandler(QWidget):
         self.speed_slider.setRange(4, 100)
         self.acceleration_slider = QLabeledSlider(Qt.Orientation.Horizontal)
         self.acceleration_slider.setRange(4, 100)
-
 
         spacer = QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
@@ -441,197 +329,7 @@ class GeneralCommands(QWidget):
         self.back2home_btn.clicked.connect(self.prior.return2home)
 
 
-class DisplayCurrentValues(QWidget):
-    def __init__(self):
-        super().__init__()
 
-        self._x = None
-        self._y = None
-        self._z = None
-
-        frame = QFrame()
-        frame.setObjectName("frame")
-        frame.setFrameShape(QFrame.StyledPanel)
-        frame.setFrameShadow(QFrame.Plain)
-        frame.setLineWidth(6)
-
-        layout = QHBoxLayout(frame)
-
-        self.x_dv = DisplayValue("X", parent=self)
-        self.y_dv = DisplayValue("Y", parent=self)
-        self.z_dv = DisplayValue("Z", parent=self)
-
-        layout.addWidget(self.x_dv)
-        layout.addWidget(self.y_dv)
-        layout.addWidget(self.z_dv)
-
-        lay = QHBoxLayout()
-        lay.addWidget(frame)
-
-        self.setLayout(lay)
-
-        self.display()
-
-    @property
-    def x(self) -> int:
-        return self._x
-
-    @x.setter
-    def x(self, value: float) -> None:
-        self._x = round(value)
-        self.x_dv.value = self._x
-
-    @property
-    def y(self) -> int:
-        return self._y
-
-    @y.setter
-    def y(self, value: float) -> None:
-        self._y = round(value)
-        self.y_dv.value = self._y
-
-    @property
-    def z(self) -> int:
-        return self._z
-
-    @z.setter
-    def z(self, value: float) -> None:
-        self._z = round(value)
-        self.z_dv.value = self._z
-
-    def display(self):
-        self.setContentsMargins(0, 0, 0, 0)
-        self.setStyleSheet(
-            """
-            QFrame#frame {
-                border: 0px solid rgba(255, 255, 255, 0.6);
-                padding-top: 0px;
-                padding-bottom: 0px;
-                margin-top: 0px;
-                margin-bottom: 0px;
-                padding-right: 40px;
-                padding-left: 40px;
-                background-color: #14171f;
-                border-radius: 50px;
-            }
-            """
-        )
-        self.setMaximumHeight(150)
-
-    def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:
-        print(self.size())
-        super().resizeEvent(a0)
-        # self.x_dv.resize(self.size())
-        # self.y_dv.resize(self.size())
-        # self.z_dv.resize(self.size())
-
-
-
-
-class DisplayValue(QWidget):
-    def __init__(self, key: str, parent=None):
-        self.parent = parent
-        super().__init__()
-        self._value = None
-
-        label_font = QFont()
-        label_font.setStyleHint(QFont.Courier)
-        key_label = QLabel(key)
-        key_label.setFont(label_font)
-
-        frame = QFrame()
-        frame.setObjectName("frame")
-        frame.setFrameShape(QFrame.StyledPanel)
-        frame.setFrameShadow(QFrame.Plain)
-        frame.setLineWidth(6)
-
-        self.value_qlcd = QLCDNumber()
-        # self.value_qlcd.setMinimumSize(QSize(10, 10))
-        self.value_qlcd.setDecMode()
-        self.value_qlcd.display(self._value)
-
-        layout = QHBoxLayout(frame)
-
-        layout.addWidget(key_label)
-        layout.addWidget(self.value_qlcd)
-
-        lay = QHBoxLayout()
-        lay.addWidget(frame)
-
-        self.setLayout(lay)
-
-        self.display()
-
-    def resize(self, a0: QtCore.QSize) -> None:
-        self.setFixedWidth(round(a0.width() / 5))
-        self.setFixedHeight(round(a0.height() / 2))
-        print(round(self.parent.size().width() / (640 / 400)), round(self.parent.size().height() / (480 / 90)))
-
-    def display(self):
-        if self.parent is not None:
-            print(self.parent.size())
-
-        print(self.parent.size())
-
-        self.setContentsMargins(0, 0, 0, 0)
-
-        self.setStyleSheet(
-            """
-            QLabel {
-            
-              text-align: center;
-
-              margin-top: 0px;
-              font-size: 28px;
-              font-family: Arial, Helvetica, sans-serif;
-              background-color: None;
-
-            }
-
-            QLCDNumber{
-                color:red;
-                background-color: None;
-                margin: None;
-            }
-            
-            QHBoxLayout {
-                border-radius: 50%;
-                background-color: gray;
-                margin-top:0px;
-                margin-bottom:0px;
-                padding:None;
-            }
-            
-            QFrame#frame {
-                border: 1px dashed rgba(255, 255, 255, 0.6);
-                border-radius: 6px;
-            }
-            
-            
-            """
-        )
-
-        palette = QtGui.QPalette()
-        # foreground color
-        palette.setColor(palette.WindowText, QtGui.QColor(255, 0, 0))
-        # background color
-        palette.setColor(palette.Background, QtGui.QColor(255, 0, 0))
-        # "light" border
-        palette.setColor(palette.Light, QtGui.QColor(255, 0, 0))
-        # "dark" border
-        palette.setColor(palette.Dark, QtGui.QColor(255, 0, 0))
-
-        self.value_qlcd.setPalette(palette)
-        self.value_qlcd.setDigitCount(8)
-
-    @property
-    def value(self) -> int:
-        return self._value
-
-    @value.setter
-    def value(self, val: float) -> None:
-        self._value = round(val)
-        self.value_qlcd.display(str(self._value))
 
 
 class RealTimeCoordWorker(QObject):
@@ -648,7 +346,6 @@ class RealTimeCoordWorker(QObject):
         while True:
             # print(self.parent.prior.busy)
             if not self.parent.prior.busy:
-
                 sleep(self.delay_refresh)
                 # print(self.prior.coords)
                 lock.acquire(blocking=True)
@@ -756,10 +453,19 @@ class Window(QWidget):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt5'))
+
+    # First task
     window = DisplayCurrentValues()
     window.x = 288000
     window.y = 100000
     window.z = 5000
     window.resize(QSize(1229, 126))
+
+    # Second task
+    # window = DirectionalButtons(size_btn=50)
+
+    # Third task
+    # window = DirectionalButtons(size_btn=50, only_two=True)
+
     window.show()
     app.exec_()

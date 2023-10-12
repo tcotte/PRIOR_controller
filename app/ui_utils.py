@@ -4,7 +4,8 @@ from typing import Union
 import qtawesome as qta
 from PyQt5 import QtGui, QtCore
 from PyQt5.QtCore import QSize, Qt, pyqtSignal
-from PyQt5.QtWidgets import QFrame, QLabel
+from PyQt5.QtGui import QFont
+from PyQt5.QtWidgets import QFrame, QLabel, QWidget, QLCDNumber, QHBoxLayout
 from PyQt5.QtWidgets import QPushButton, QApplication, QToolButton
 
 
@@ -262,3 +263,5 @@ class HoveredButton(QPushButton):
         self.setIcon(icon)
         QApplication.restoreOverrideCursor()
         super(HoveredButton, self).mouseReleaseEvent(event)
+
+
