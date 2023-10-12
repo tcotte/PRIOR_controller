@@ -156,7 +156,7 @@ class XYHandler(QWidget):
     def __init__(self, parent, contracted_widget: bool = False):
         super().__init__(parent)
 
-        self._contracted_widget = contracted_widget
+        self.contracted_widget = contracted_widget
 
         # arrows
         # speed
@@ -196,7 +196,7 @@ class XYHandler(QWidget):
         layout.addLayout(h_layout)
         layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
         layout.addLayout(layout_btn)
-        if not self._contracted_widget:
+        if not self.contracted_widget:
             layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
             layout.addWidget(QHLine())
             layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
@@ -275,7 +275,7 @@ class XYHandler(QWidget):
         self.prior.set_relative_position_steps(*position)
 
     def open_absolute_position_window(self) -> None:
-        dlg = GoToXY(x_position=self.main_window.x, y_position=self.main_window.y)
+        dlg = GoToXY(x_position=self.main_window.x, y_position=self.main_window.y, parent=self)
         result = dlg.exec_()
 
         if result == 0:
@@ -295,7 +295,7 @@ class XYHandler(QWidget):
 class ZHandler(QWidget):
     def __init__(self, parent, contracted_widget: bool = False):
         super().__init__(parent)
-        self._contracted_widget = contracted_widget
+        self.contracted_widget = contracted_widget
 
         # arrows
         # speed
@@ -336,7 +336,7 @@ class ZHandler(QWidget):
         layout.addLayout(h_layout)
         layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
         layout.addLayout(layout_btn)
-        if not self._contracted_widget:
+        if not self.contracted_widget:
             layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
             layout.addWidget(QHLine())
             layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
@@ -378,7 +378,7 @@ class ZHandler(QWidget):
             raise f"The direction {direction.upper()} is not taken in charge on the Z axis'"
 
     def open_absolute_position_window(self) -> None:
-        dlg = GoToZ(z_position=self.main_window.z)
+        dlg = GoToZ(z_position=self.main_window.z, parent=self)
 
         result = dlg.exec_()
 
@@ -518,6 +518,15 @@ class DisplayCurrentValues(QWidget):
         )
         self.setMaximumHeight(150)
 
+    def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:
+        print(self.size())
+        super().resizeEvent(a0)
+        # self.x_dv.resize(self.size())
+        # self.y_dv.resize(self.size())
+        # self.z_dv.resize(self.size())
+
+
+
 
 class DisplayValue(QWidget):
     def __init__(self, key: str, parent=None):
@@ -537,6 +546,7 @@ class DisplayValue(QWidget):
         frame.setLineWidth(6)
 
         self.value_qlcd = QLCDNumber()
+        # self.value_qlcd.setMinimumSize(QSize(10, 10))
         self.value_qlcd.setDecMode()
         self.value_qlcd.display(self._value)
 
@@ -553,7 +563,9 @@ class DisplayValue(QWidget):
         self.display()
 
     def resize(self, a0: QtCore.QSize) -> None:
-        self.display()
+        self.setFixedWidth(round(a0.width() / 5))
+        self.setFixedHeight(round(a0.height() / 2))
+        print(round(self.parent.size().width() / (640 / 400)), round(self.parent.size().height() / (480 / 90)))
 
     def display(self):
         if self.parent is not None:
@@ -562,8 +574,7 @@ class DisplayValue(QWidget):
         print(self.parent.size())
 
         self.setContentsMargins(0, 0, 0, 0)
-        self.setFixedWidth(round(self.parent.size().width()/(640/400)))
-        self.setFixedHeight(round(self.parent.size().height()/(480/90)))
+
         self.setStyleSheet(
             """
             QLabel {
@@ -745,9 +756,10 @@ class Window(QWidget):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt5'))
-    window = Window()
-    # window.x = 5000
-    # window.y = 5000
-    # window.z = 5000
+    window = DisplayCurrentValues()
+    window.x = 288000
+    window.y = 100000
+    window.z = 5000
+    window.resize(QSize(1229, 126))
     window.show()
     app.exec_()

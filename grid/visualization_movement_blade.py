@@ -230,13 +230,14 @@ class myWindow(QMainWindow):
         docked.setWidget(self.grids_setup)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, docked)
 
+        self.prior = PriorController(port="COM15", baudrate=9600, timeout=0.1)
+
         docked = QDockWidget("Dockable")
         self.ids_cam_window = IDSCamWindow()
         # self.dockedWidget.setParent(self)
         docked.setWidget(self.ids_cam_window)
-        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, docked)
+        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, docked)
 
-        # self.prior = PriorController(port="COM15", baudrate=9600, timeout=0.1)
         self.hide_show_axis_shortcut = QShortcut(QKeySequence("Ctrl+H"), self)
 
         self.connect_actions()

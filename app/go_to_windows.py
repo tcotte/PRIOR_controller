@@ -16,8 +16,8 @@ Z_RANGE = (0, 100000)
 
 
 class GoToXY(QDialog):
-    def __init__(self, x_position: Union[int, None], y_position: Union[int, None]):
-        super().__init__()
+    def __init__(self, x_position: Union[int, None], y_position: Union[int, None], parent=None):
+        super().__init__(parent)
         self._x_position = None
         self._y_position = None
 
@@ -43,11 +43,15 @@ class GoToXY(QDialog):
         self.button_box.addButton(QDialogButtonBox.Close)
 
         main_layout.addLayout(form_layout)
-        main_layout.addItem(QSpacerItem(20, 20, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding))
-        main_layout.addWidget(speed_label)
-        main_layout.addWidget(self.speed_slider)
-        main_layout.addWidget(acceleration_label)
-        main_layout.addWidget(self.acceleration_slider)
+
+        if hasattr(self.parent(), "contracted_widget"):
+            if not self.parent().contracted_widget:
+                main_layout.addItem(QSpacerItem(20, 20, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding))
+                main_layout.addWidget(speed_label)
+                main_layout.addWidget(self.speed_slider)
+                main_layout.addWidget(acceleration_label)
+                main_layout.addWidget(self.acceleration_slider)
+
         main_layout.addItem(QSpacerItem(20, 20, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding))
         main_layout.addWidget(QHLine())
         main_layout.addItem(QSpacerItem(20, 20, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding))
@@ -88,8 +92,9 @@ class GoToXY(QDialog):
 
 
 class GoToZ(QDialog):
-    def __init__(self, z_position: Union[int, None]):
-        super().__init__()
+    def __init__(self, z_position: Union[int, None], parent=None):
+
+        super().__init__(parent)
         self._z_position = None
 
         self.z_pos_sb = QSpinBox()
@@ -109,12 +114,17 @@ class GoToZ(QDialog):
         self.button_box.addButton(QDialogButtonBox.Ok)
         self.button_box.addButton(QDialogButtonBox.Close)
 
+
         main_layout.addLayout(form_layout)
-        main_layout.addItem(QSpacerItem(20, 20, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding))
-        main_layout.addWidget(speed_label)
-        main_layout.addWidget(self.speed_slider)
-        main_layout.addWidget(acceleration_label)
-        main_layout.addWidget(self.acceleration_slider)
+
+        if hasattr(self.parent(), "contracted_widget"):
+            if not self.parent().contracted_widget:
+                main_layout.addItem(QSpacerItem(20, 20, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding))
+                main_layout.addWidget(speed_label)
+                main_layout.addWidget(self.speed_slider)
+                main_layout.addWidget(acceleration_label)
+                main_layout.addWidget(self.acceleration_slider)
+
         main_layout.addItem(QSpacerItem(20, 20, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding))
         main_layout.addWidget(QHLine())
         main_layout.addItem(QSpacerItem(20, 20, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding))
