@@ -9,7 +9,7 @@ import qdarkstyle
 import qimage2ndarray
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, QThread, QRectF
 from PyQt5.QtGui import QPixmap, QPen, QPainter, QBrush, QColor, QKeySequence
-from PyQt5.QtWidgets import QGraphicsScene, QGraphicsView, QApplication, QGraphicsPixmapItem, QGraphicsRectItem, \
+from PyQt5.QtWidgets import QGraphicsScene, QApplication, QGraphicsPixmapItem, QGraphicsRectItem, \
     QWidget, QHBoxLayout, QDockWidget, QVBoxLayout, QPushButton, QMainWindow, QButtonGroup, QRadioButton, QLabel, \
     QSpinBox, QMessageBox, QShortcut, QProgressBar
 

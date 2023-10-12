@@ -174,8 +174,6 @@ class CrossItem(QGraphicsItem):
                          QPoint(self._center_x_position, round(self._center_y_position + self._size / 2)))
 
     def boundingRect(self):
-        print(QRectF(round(self._center_x_position - self._size / 2), round(self._center_y_position - self._size / 2),
-                     self._size, self._size))
         return QRectF(round(self._center_x_position - self._size / 2), round(self._center_y_position - self._size / 2),
                       self._size, self._size)
 
@@ -243,7 +241,7 @@ class myWindow(QMainWindow):
         self.connect_actions()
 
     def connect_actions(self):
-        self.grids_setup.grid_starting_points.connect(self.generate_grids)
+        self.grids_setup.grids_starting_points_signal.connect(self.generate_grids)
         self.hide_show_axis_shortcut.activated.connect(self.hide_show_axis)
 
     def hide_show_axis(self):
@@ -265,21 +263,22 @@ class myWindow(QMainWindow):
         self.grids = grids
 
         for grid in grids:
-            start_pt_x = grid[0]
-            start_pt_y = grid[1]
-            matrix = grid[2]
+            if grid is not None:
+                start_pt_x = grid.start_position[0]
+                start_pt_y = grid.start_position[1]
+                matrix = grid.matrix_length
 
-            width_grid = int(IMAGE_SIZE[0] * (1 + matrix * (OVERLAP / 100)))
-            length_grid = int(IMAGE_SIZE[1] * (1 + matrix * (OVERLAP / 100)))
+                width_grid = int(IMAGE_SIZE[0] * (1 + matrix * (OVERLAP / 100)))
+                length_grid = int(IMAGE_SIZE[1] * (1 + matrix * (OVERLAP / 100)))
 
-            gm = GridMovement(x=0, y=0, img_size=IMAGE_SIZE, x_lim=(0, X_LIMIT), y_lim=(0, Y_LIMIT))
-            gm.course = Course().V_RIGHT
-            grid_points = gm.get_grid(start_pt=(start_pt_x, start_pt_y),
-                                      final_pt=(start_pt_x + width_grid, start_pt_y + length_grid),
-                                      percentage_non_overlap=(OVERLAP / 100, OVERLAP / 100))
+                gm = GridMovement(x=0, y=0, img_size=IMAGE_SIZE, x_lim=(0, X_LIMIT), y_lim=(0, Y_LIMIT))
+                gm.course = Course().V_RIGHT
+                grid_points = gm.get_grid(start_pt=(start_pt_x, start_pt_y),
+                                          final_pt=(start_pt_x + width_grid, start_pt_y + length_grid),
+                                          percentage_non_overlap=(OVERLAP / 100, OVERLAP / 100))
 
-            bounding_rect = list(get_bounding_rec_grid(grid=grid_points, img_size=IMAGE_SIZE))
-            self.draw_bounding_rect_grid(bounding_rect)
+                bounding_rect = list(get_bounding_rec_grid(grid=grid_points, img_size=IMAGE_SIZE))
+                self.draw_bounding_rect_grid(bounding_rect)
 
     def draw_bounding_rect_grid(self, bounding_rect):
         print(bounding_rect)
