@@ -2,9 +2,10 @@ import sys
 import typing
 
 import qdarkstyle
-from PyQt5.QtCore import QSize
-from PyQt5.QtGui import QKeyEvent
-from PyQt5.QtWidgets import QWidget, QGridLayout, QLayout, QApplication
+from PyQt5 import QtGui
+from PyQt5.QtCore import QSize, QEvent, Qt
+from PyQt5.QtGui import QKeyEvent, QWindowStateChangeEvent
+from PyQt5.QtWidgets import QWidget, QGridLayout, QLayout, QApplication, QHBoxLayout
 import qtawesome as qta
 
 from long_click_w import LongClickButton
@@ -26,33 +27,16 @@ class DirectionalButtons(QWidget):
 
         self.only_two = only_two
 
-        up_icon = qta.icon('ri.arrow-up-s-line')
-        self.up_button = LongClickButton(up_icon, '')
-        self.up_button.setFixedSize(QSize(size_btn, size_btn))
-        self.up_button.setIconSize(QSize(round(size_btn), round(size_btn)))
-        self.up_button.setObjectName('up')
-
-        down_icon = qta.icon('ri.arrow-down-s-line')
-        self.down_button = LongClickButton(down_icon, '')
-        self.down_button.setFixedSize(QSize(size_btn, size_btn))
-        self.down_button.setIconSize(QSize(round(size_btn), round(size_btn)))
-        self.down_button.setObjectName('down')
+        self.up_button = ArrowButton(Directions.UP, round(size_btn))
+        self.down_button = ArrowButton(Directions.DOWN, round(size_btn))
 
         if not only_two:
-            left_icon = qta.icon('ri.arrow-left-s-line')
-            self.left_button = LongClickButton(left_icon, '')
-            self.left_button.setFixedSize(QSize(size_btn, size_btn))
-            self.left_button.setIconSize(QSize(round(size_btn), round(size_btn)))
-            self.left_button.setObjectName('left')
-
-            right_icon = qta.icon('ri.arrow-right-s-line')
-            self.right_button = LongClickButton(right_icon, '')
-            self.right_button.setFixedSize(QSize(size_btn, size_btn))
-            self.right_button.setIconSize(QSize(round(size_btn), round(size_btn)))
-            self.right_button.setObjectName('right')
+            self.left_button = ArrowButton(Directions.LEFT, round(size_btn))
+            self.right_button = ArrowButton(Directions.RIGHT, round(size_btn))
 
         layout = QGridLayout()
         layout.setObjectName('layout')
+        """
         layout.addWidget(self.up_button, 0, 1, 1, 1)
         if not only_two:
             layout.addWidget(self.left_button, 1, 0, 1, 1)
@@ -62,13 +46,60 @@ class DirectionalButtons(QWidget):
             space.setFixedSize(QSize(size_btn, size_btn))
             layout.addWidget(space, 1, 0, 1, 1)
         layout.addWidget(self.down_button, 2, 1, 1, 1)
+        """
+        if not only_two:
+            layout.addWidget(self.up_button, 0, 1)
+            layout.addWidget(self.left_button, 1, 0)
+            layout.addWidget(self.right_button, 1, 2)
+            layout.addWidget(self.down_button, 2, 1)
+        else:
+            layout.addWidget(self.up_button, 0, 0)
+            space = QWidget()
+            space.setFixedSize(QSize(size_btn, size_btn))
+            layout.addWidget(space, 1, 0)
+            layout.addWidget(self.down_button, 2, 0)
 
-        layout.setSizeConstraint(QLayout.SetFixedSize)
-        self.setLayout(layout)
+        # layout.setSizeConstraint(QLayout.SetFixedSize)
+
+        # create a parent widget for the buttons to have a more flexible control over the button layout
+        self.button_holder = QWidget()
+        self.button_holder.setLayout(layout)
+        layout_button_holder = QHBoxLayout()
+        layout_button_holder.addWidget(self.button_holder)
+
+        self.setMinimumSize(QSize(100, 100))
+
+        self.setLayout(layout_button_holder)
 
         self.display()
 
         self.connect_actions()
+
+    def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:
+        super().resizeEvent(a0)
+        # create square size
+        # if using only self.width() or self.height() without trimming the values, the window will endlessly resize itself
+        size = QSize(min(int(self.width() / 1.5), int(self.height() / 1.5)), min(int(self.width() / 1.5), int(self.height() / 1.5)))
+        # buttons sizes
+        btn_size = QSize(min(int(size.width() / 4), int(size.height() / 4)),
+                         min(int(size.width() / 4), int(size.height() / 4)))
+        self.button_holder.setFixedSize(size)
+        self.resize_buttons(btn_size)
+
+    def resize_buttons(self, size=None):
+        if not self.only_two:
+            list_btns = [self.up_button, self.left_button, self.right_button, self.down_button]
+        else:
+            list_btns = [self.up_button, self.down_button]
+        if size is not None:
+            w = size.width()
+            h = size.height()
+        else:
+            w = self.size().width() / 4
+            h = self.size().height() / 4
+        # print(w, h)
+        for btn in list_btns:
+            btn.resize_icon(QSize(round(min(w, h)), round(min(w, h))))
 
     def connect_actions(self):
         if not self.only_two:
@@ -105,15 +136,18 @@ class DirectionalButtons(QWidget):
     def display(self):
         self.setStyleSheet(
             """
+            layout {
+                margin: 500px;
+            }
             QPushButton {
-            display: inline-block;
-            background-color: #4CAF50;
+                display: inline-block;
+                background-color: #4CAF50;
 
-            color: #fff;
-            text-align: center;
+                color: #fff;
+                text-align: center;
 
-            text-decoration: none;
-            border-radius: %s;
+                text-decoration: none;
+                border-radius: %s;
             }     
 
             QPushButton:hover {
@@ -126,17 +160,49 @@ class DirectionalButtons(QWidget):
             """ % (str(self.radius)))
 
 
+class ArrowButton(LongClickButton):
+
+    def __init__(self, direction: int, size_btn: int):
+        if direction == Directions.LEFT:
+            name = "left"
+        elif direction == Directions.RIGHT:
+            name = "right"
+        elif direction == Directions.UP:
+            name = "up"
+        else:
+            name = "down"
+        icon = qta.icon(f"ri.arrow-{name}-s-line")
+        super(ArrowButton, self).__init__(icon, '')
+
+        self.setFixedSize(QSize(size_btn, size_btn))
+        self.setIconSize(QSize(size_btn, size_btn))
+        self.setObjectName(name)
+
+    def resize_icon(self, size: QSize):
+        self.setFixedSize(size)
+        self.setIconSize(size)
+
+        # re-set the button's border radius acccording to its new size
+        self.setStyleSheet(
+            """
+            QPushButton {
+                border-radius: %s;
+            }
+            """ % str(int(self.iconSize().width()/2))
+        )
+
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt5'))
 
-
-
     # Second task
-    # window = DirectionalButtons(size_btn=50)
+    window = DirectionalButtons(size_btn=50)
+    second_window = DirectionalButtons(size_btn=50, only_two=True)
+    second_window.show()
 
     # Third task
-    window = DirectionalButtons(size_btn=50, only_two=True)
+    # window = DirectionalButtons(size_btn=50, only_two=True)
 
     window.show()
     app.exec_()
