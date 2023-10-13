@@ -2,9 +2,9 @@ import sys
 
 import qdarkstyle
 from PyQt5 import QtCore, QtGui
-from PyQt5.QtCore import QSize
-from PyQt5.QtGui import QFont
-from PyQt5.QtWidgets import QWidget, QLabel, QFrame, QLCDNumber, QHBoxLayout, QApplication
+from PyQt5.QtCore import QSize, QRect, Qt
+from PyQt5.QtGui import QFont, QFontMetrics
+from PyQt5.QtWidgets import QWidget, QLabel, QFrame, QLCDNumber, QHBoxLayout, QApplication, QSizePolicy
 
 
 class DisplayCurrentValues(QWidget):
@@ -82,14 +82,14 @@ class DisplayCurrentValues(QWidget):
             }
             """
         )
-        self.setMaximumHeight(150)
+        # self.setMaximumHeight(150)
 
     def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:
-        print(self.size())
+        # print(self.size())
         super().resizeEvent(a0)
-        # self.x_dv.resize(self.size())
-        # self.y_dv.resize(self.size())
-        # self.z_dv.resize(self.size())
+        self.x_dv.resize(self.size())
+        self.y_dv.resize(self.size())
+        self.z_dv.resize(self.size())
 
 
 class DisplayValue(QWidget):
@@ -98,10 +98,10 @@ class DisplayValue(QWidget):
         super().__init__()
         self._value = None
 
-        label_font = QFont()
-        label_font.setStyleHint(QFont.Courier)
-        key_label = QLabel(key)
-        key_label.setFont(label_font)
+        self.label_font = QFont()
+        self.label_font.setStyleHint(QFont.Courier)
+        self.key_label = QLabel(key)
+        self.key_label.setFont(self.label_font)
 
         frame = QFrame()
         frame.setObjectName("frame")
@@ -109,13 +109,14 @@ class DisplayValue(QWidget):
         frame.setFrameShadow(QFrame.Plain)
         frame.setLineWidth(6)
 
-        self.value_qlcd = QLCDNumber()
+        self.value_qlcd = QLCDNumber(self)
         self.value_qlcd.setDecMode()
         self.value_qlcd.display(self._value)
+        self.value_qlcd.setFixedWidth(150)
 
         layout = QHBoxLayout(frame)
 
-        layout.addWidget(key_label)
+        layout.addWidget(self.key_label)
         layout.addWidget(self.value_qlcd)
 
         lay = QHBoxLayout()
@@ -125,19 +126,85 @@ class DisplayValue(QWidget):
 
         self.display()
 
+        self.prev_parent_size = None
+        if self.parent is not None:
+            self.prev_parent_size = self.parent.size()
+
     def resize(self, a0: QtCore.QSize) -> None:
-        self.setFixedWidth(round(a0.width() / 5))
-        self.setFixedHeight(round(a0.height() / 2))
-        print(round(self.parent.size().width() / (640 / 400)), round(self.parent.size().height() / (480 / 90)))
+        # flags to prevent visual issues
+        resize_x = True
+        resize_y = True
+        if self.prev_parent_size is not None:
+            if self.prev_parent_size.width() == a0.width():
+                resize_x = False
+            if self.prev_parent_size.height() == a0.height():
+                resize_y = False
+
+        print("self" + self.key_label.text() + ":", self.width(), self.height(), "minimums:", self.minimumWidth(),
+              self.minimumHeight(), "resize x:", resize_x, "resize y", resize_y)
+
+        if resize_x:
+            width = round(a0.width() / 4)
+        else:
+            width = self.width()
+
+        if resize_y:
+            height = round(width / 3)  # round(a0.height() / 1.5)
+        else:
+            height = self.height()
+
+        if width < self.minimumWidth():
+            width = self.minimumWidth()
+            height = self.minimumHeight()
+
+        self.resizeElements(width, height)
+        self.setFixedWidth(width)
+        self.setFixedHeight(height)
+
+        # re-set minimum size
+        self.setMinimumWidth(300)
+        self.setMinimumHeight(100)
+
+        self.prev_parent_size = a0
+        """width = round(a0.width() / 4)
+        height = round(width/3)             # round(a0.height() / 1.5)
+        if width < self.minimumWidth():
+            width = self.minimumWidth()
+            height = self.minimumHeight()
+
+        self.resizeElements(width, height)
+        self.setFixedWidth(width)
+        self.setFixedHeight(height)
+
+        # re-set minimum size
+        self.setMinimumWidth(300)
+        self.setMinimumHeight(100)"""
+
+    def resizeElements(self, width, height):
+        # https://stackoverflow.com/questions/40861305/dynamically-change-font-size-of-qlabel-to-fit-available-space
+        # total space available
+        available_space = QRect(self.x(), self.y(), width, height)
+        # get space taken by key_label
+        text_space: QRect = QFontMetrics(self.label_font).boundingRect(self.key_label.text())
+
+        factorw = (available_space.width() / 2) / float(text_space.width())
+        factorh = (available_space.height() / 2) / float(text_space.height())
+        factor = min(factorw, factorh)
+
+        if factor < 0.95 or factor > 1.05:
+            new_font_size = self.label_font.pointSizeF() * factor
+            new_font = self.key_label.font()
+            new_font.setPointSizeF(round(new_font_size * 0.7))
+            self.key_label.setFont(new_font)
 
     def display(self):
-        if self.parent is not None:
+        """if self.parent is not None:
             print(self.parent.size())
 
-        print(self.parent.size())
+        print(self.parent.size())"""
 
         self.setContentsMargins(0, 0, 0, 0)
-
+        # font-size: 28px;
         self.setStyleSheet(
             """
             QLabel {
@@ -145,7 +212,6 @@ class DisplayValue(QWidget):
               text-align: center;
 
               margin-top: 0px;
-              font-size: 28px;
               font-family: Arial, Helvetica, sans-serif;
               background-color: None;
 
