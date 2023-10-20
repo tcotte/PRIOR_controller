@@ -1,10 +1,12 @@
 import functools
+from pathlib import Path
 from typing import Union
 
 import qtawesome as qta
 from PyQt5 import QtGui, QtCore
 from PyQt5.QtCore import QSize, Qt, pyqtSignal
-from PyQt5.QtWidgets import QFrame, QLabel
+from PyQt5.QtGui import QCursor, QPainter
+from PyQt5.QtWidgets import QFrame, QLabel, QDockWidget, QStyle, QWidget
 from PyQt5.QtWidgets import QPushButton, QApplication, QToolButton
 
 
@@ -33,22 +35,39 @@ class QVLine(QFrame):
 
 
 class AnimatedOnHoverButton(QPushButton):
-    def __init__(self, parent, font_color: Union[None, QtGui.QColor] = None,
-                 background_color: Union[None, QtGui.QColor] = None,
-                 duration: int = 800):
-        super().__init__(parent)
-        if background_color is None:
-            self._background_color = QtGui.QColor("#19232D")
-        else:
-            self._background_color = background_color
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-        if font_color is None:
-            self._font_color = QtGui.QColor("white")
-        else:
-            self._font_color = font_color
+        self._background_color = QtGui.QColor("#19232D")
+        self._font_color = QtGui.QColor("white")
+        self._duration = 300
 
-        self._duration = duration
+        self.display()
 
+    @property
+    def duration(self):
+        return self._duration
+
+    @duration.setter
+    def duration(self, value):
+        self._duration = value
+
+    @property
+    def font_color(self):
+        return self._font_color
+
+    @font_color.setter
+    def font_color(self, value):
+        self._font_color = value
+        self.display()
+
+    @property
+    def background_color(self):
+        return self.background_color
+
+    @background_color.setter
+    def background_color(self, value):
+        self._background_color = value
         self.display()
 
     def display(self):
@@ -104,6 +123,23 @@ class AnimatedOnHoverButton(QPushButton):
             end_color=self._background_color,
             duration=self._duration
         )
+        super().leaveEvent(a0)
+
+
+class MapButton(AnimatedOnHoverButton):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        map_icon = qta.icon('mdi.map-marker', color=self._font_color)
+        self.setIcon(map_icon)
+
+    def enterEvent(self, a0: QtCore.QEvent) -> None:
+        map_icon = qta.icon('mdi.map-marker', color=self._background_color)
+        self.setIcon(map_icon)
+        super().enterEvent(a0)
+
+    def leaveEvent(self, a0: QtCore.QEvent) -> None:
+        map_icon = qta.icon('mdi.map-marker', color=self._font_color)
+        self.setIcon(map_icon)
         super().leaveEvent(a0)
 
 
@@ -262,3 +298,38 @@ class HoveredButton(QPushButton):
         self.setIcon(icon)
         QApplication.restoreOverrideCursor()
         super(HoveredButton, self).mouseReleaseEvent(event)
+
+
+def get_project_root() -> Path:
+    """
+    Get path of project root
+    :return: path of project root
+    """
+    return Path(__file__).parent.parent
+
+
+class CustomDockWidget(QDockWidget):
+    '''
+    Widget de base de la plateforme image
+    '''
+
+    def __init__(self, title, parent=None):
+        super(CustomDockWidget, self).__init__(title, parent)
+        self.setAllowedAreas(Qt.LeftDockWidgetArea | Qt.RightDockWidgetArea | Qt.BottomDockWidgetArea)
+        self.setFeatures(QDockWidget.DockWidgetFloatable | QDockWidget.DockWidgetMovable)
+        self.display()
+
+    def display(self):
+        title_bar_height = self.style().pixelMetric(QStyle.PM_TitleBarHeight)
+        if title_bar_height < 35:
+            self.setStyleSheet("QDockWidget::title{padding-top: 10px;}")
+
+    def ignore_title_bar(self):
+        self.setTitleBarWidget(QWidget())
+        self.titleBarWidget().hide()
+
+
+def get_map_cursor():
+    icon = qta.icon('fa.map-marker', color='gray')
+    pixmap = icon.pixmap(icon.actualSize(QSize(32, 32)))
+    return QtGui.QCursor(pixmap)

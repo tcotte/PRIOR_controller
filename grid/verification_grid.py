@@ -5,7 +5,7 @@ import numpy as np
 from grid.grid_movement import GridMovement, Course
 
 
-def draw_square_contours(img_size, pt, m, rgb_color = (0, 0, 0), thickness=0):
+def draw_square_contours(img_size, pt, m, rgb_color=(0, 0, 0), thickness=0):
     x0 = pt[0]
     y0 = pt[1]
     x1 = pt[0] + img_size[0]
@@ -32,6 +32,7 @@ def draw_square_contours(img_size, pt, m, rgb_color = (0, 0, 0), thickness=0):
     # m[pt[0]:pt[0] + img_size[0], pt[1]:pt[1] + img_size[1]] = 255
     return m
 
+
 def draw_bouding_rect(bounding_rect, m):
     x0 = bounding_rect[0]
     y0 = bounding_rect[1]
@@ -46,7 +47,7 @@ def draw_bouding_rect(bounding_rect, m):
     return m
 
 
-img_size = (4*85, 4*68)
+img_size = (4 * 85, 4 * 68)
 gm = GridMovement(x=0, y=0, img_size=img_size, x_lim=(0, 5000), y_lim=(0, 5000))
 gm.course = Course().V_RIGHT
 grid = gm.get_grid(start_pt=(0, 0), final_pt=(1000, 1000), percentage_non_overlap=(0.4, 0.4))
@@ -57,10 +58,8 @@ bounding_rect[2] += img_size[0]
 bounding_rect[3] += img_size[1]
 print(bounding_rect)
 
-m=np.ones((bounding_rect[3] + 10 , bounding_rect[2] + 10, 3), dtype=np.uint8)*255
+m = np.ones((bounding_rect[3] + 10, bounding_rect[2] + 10, 3), dtype=np.uint8) * 255
 m = draw_bouding_rect((0, 0, 1000, 1000), m)
-
-
 
 for point in grid:
     # m = draw_square(img_size=(4*85, 4*68), pt=point, m=m)
@@ -72,12 +71,11 @@ for point in grid:
     # # Following line overlays transparent rectangle over the image
     # image_new = cv2.addWeighted(m, alpha, image, 1 - alpha, 0)
 
-
     sub_img = m[point[1]:point[1] + img_size[1], point[0]:point[0] + img_size[0]]
     white_rect = np.ones(sub_img.shape, dtype=np.uint8) * 10
 
     alpha = 0.9
-    res = cv2.addWeighted(sub_img, alpha, white_rect, 1-alpha, 0)
+    res = cv2.addWeighted(sub_img, alpha, white_rect, 1 - alpha, 0)
 
     # Putting the image back to its position
     m[point[1]:point[1] + img_size[1], point[0]:point[0] + img_size[0]] = res

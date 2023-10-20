@@ -100,7 +100,7 @@ class CustomGraphicsScene(QGraphicsScene):
     def getBinningRatio(self):
         scene_resolution = self.get_bckgd_size()
         max_resolution = self.getRealImageSize()
-        return(max_resolution[0] / scene_resolution[0])
+        return max_resolution[0] / scene_resolution[0]
 
     def get_bckgd_size(self) -> [float, float]:
         """

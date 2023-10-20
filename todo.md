@@ -116,3 +116,27 @@ LA DIAGONALE :  z [100, 600]
 
 400 -> 640
 100 -> 640*100/400 = 640/4 = 460
+
+
+
+
+#### 
+au depart checkmark vide + sans fond (bleu nuit)
+si checkee: ajout checkmark + contour + checkmark en vert -> fond pas grisé
+sur un double click -> la grille n'est plus validée
+
+
+bouton start un peu plus gros (ou autre couleur)
+
+ajout fichier .env pour mettre les constantes
+ajouter les constantes liées à la caméra
+
+ajout legendes slide 1,2, 3
+ + legendes axis
+
+
+
+##########
+mettre la tick à droite 
+utiliser les cosmetiques sur les axes
+pouvoir setter une position avec la souris

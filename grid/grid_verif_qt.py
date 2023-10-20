@@ -17,7 +17,7 @@ from grid.display import Display
 from grid.grid_movement import Course, GridMovement, get_bounding_rec_grid
 from grid.verification_grid import draw_square_contours
 
-IMAGE_SIZE: typing.Final = (4 * 85, 4 * 68)
+IMAGE_SIZE: typing.Final = (210, 175)
 
 
 class DockedForm(QWidget):
@@ -75,7 +75,7 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.win = Window(self)
+        self.win = GridVerification(self)
         self.setCentralWidget(self.win)
 
         self._acquisition_status = False
@@ -142,14 +142,14 @@ class MainWindow(QMainWindow):
         self.generated_grid_signal.emit(grid)
 
 
-class Window(QWidget):
+class GridVerification(QWidget):
 
     def __init__(self, parent=None):
         super().__init__()
         self.parent = parent
 
-        self.setMinimumWidth(600)
-        self.setMinimumHeight(500)
+        self.setMinimumWidth(300)
+        self.setMinimumHeight(300)
 
         self.scene = QGraphicsScene()
         self.view = Display()
@@ -196,10 +196,11 @@ class Window(QWidget):
         if self._grid is not None:
             bounding_rect = list(get_bounding_rec_grid(grid=self._grid, img_size=IMAGE_SIZE))
             self.draw_grid(bounding_rect)
-            self.draw_lens()
-            self.move_rectangle(counter=0)
+            # self.draw_lens()
+            # self.move_rectangle(counter=0)
             self.scene.setSceneRect(0, 0, bounding_rect[2], bounding_rect[3])
-            self.fitView()
+            # self.fitView()
+            self.view.on_new_image_flux()
             self.scene.update()
 
     def connect_actions(self):

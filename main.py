@@ -298,7 +298,6 @@ class PriorController(serial.Serial):
     def cmd_answer(self):
         # full_answer = self.readline().decode().strip()
         full_answer = self.read_until(b'\r').decode().strip()
-        print("ANSWER     ", full_answer)
         return full_answer
         # self.readline().decode().strip()
         # return full_answer.split("\r", 1)[0]
@@ -467,10 +466,26 @@ class PriorController(serial.Serial):
         return self._active_joystick
 
     def return2home(self):
+        # thread_return2home= threading.Thread(target=self.return2home_with_thread)
+        # thread_return2home.start()
         cmd = "M"
         self.write_cmd(cmd)
 
         self.looking_for_position(feature=sys._getframe().f_code.co_name, axis="ALL", value=None)
+
+    def return2home_with_thread(self):
+
+        while True:
+            if self.in_waiting > 0:
+                # # print("set position")
+                cmd = "M"
+                self.write_cmd(cmd)
+
+                break
+
+        # cmd = "M"
+        # self.write_cmd(cmd)
+
 
     @property
     def coords(self) -> str:
