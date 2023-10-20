@@ -2,28 +2,24 @@ import sys
 import threading
 import time
 import typing
-from typing import Union
-import qtawesome as qta
+
 import qdarkstyle
 from PyQt5 import QtGui, QtWidgets, QtCore
 from PyQt5.QtCore import pyqtSignal, QObject, Qt, QSize
 from PyQt5.QtGui import QCloseEvent
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QApplication, QPushButton, QFormLayout, QSpacerItem
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QApplication, QFormLayout, QSpacerItem
 from qtwidgets import AnimatedToggle
 from serial import SerialTimeoutException
 
-from app.go_to_windows import GoToXY, GoToPosition
-from app.ui import DisplayCurrentValues, DirectionalButtons, Directions, GeneralCommands
+from app.go_to_windows import GoToPosition
+from app.ui import DisplayCurrentValues, DirectionalButtons, Directions
 from app.ui_utils import TitleSectionLabel, FormLabel, AnimatedOnHoverButton, MapButton
 from app.utils.position import Position
-
+from automatic_prior_detector import PriorSearcher
 from main import PriorController
 
 connected = False
 
-port = 'COM15'  # replace this with your port
-
-baud = 9600  # Baud rate
 
 
 class MicroscopeHandler(QObject):
@@ -293,12 +289,6 @@ class PriorHandler(QWidget):
 
         layout.addLayout(control_layout)
 
-        # xy_widget = XYHandler(parent=self, contracted_widget=True)
-        # xy_widget.xy_directions.resize(QSize(200, 200))
-        # # xy_widget.setFixedSize(QSize(400, 500))
-        # z_widget = ZHandler(parent=self, contracted_widget=True)
-        # z_widget.setFixedSize(QSize(400, 500))
-
         self.display_values = DisplayCurrentValues()
         self.display_values.resize(200, 100)
 
@@ -399,7 +389,9 @@ class PriorHandler(QWidget):
 if __name__ == "__main__":
     # self.prior.write_cmd("COMP, 1")
     # self.prior.write_cmd("COMP")
-    ser = PriorController(port="COM15", baudrate=9600, timeout=0.1)
+    baudrate = 9600
+    ps = PriorSearcher(baudrate_list=[baudrate])
+    ser = PriorController(port=ps.port, baudrate=baudrate, timeout=0.1)
     ser.acceleration = 10
     ser.speed = 10
     ser.write_cmd("COMP, 1")

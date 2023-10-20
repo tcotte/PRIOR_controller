@@ -1,4 +1,3 @@
-import math
 import sys
 from datetime import datetime
 from typing import Final, Union
@@ -9,11 +8,10 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
-from app.ui import RealTimeCoordWorker
-from app.ui_utils import QHLine, CustomDockWidget, get_map_cursor
-from app.utils.GraphicItems.arrow import Arrow
-from app.utils.GraphicItems.clickable_graphics_scene import ClickableGraphicsScene
-from app.utils.GraphicItems.cross import CrossItem
+from app.ui_utils import QHLine, CustomDockWidget
+from app.utils.UI.GraphicItems.arrow import Arrow
+from app.utils.UI.GraphicItems.clickable_graphics_scene import ClickableGraphicsScene
+from app.utils.UI.GraphicItems.cross import CrossItem
 from app.utils.position import Position
 from automatic_prior_detector import PriorSearcher
 from camera.idscamwindow import IDSCamWindow
@@ -29,7 +27,7 @@ SPACE_BETWEEN_SLIDES: Final = 3300
 SLIDE_WIDTH: Final = 26000
 SLIDE_HEIGHT: Final = 76000
 
-OVERLAP = 90
+OVERLAP = 60
 IMAGE_SIZE = (210, 175)
 
 

@@ -329,7 +329,7 @@ class CustomDockWidget(QDockWidget):
         self.titleBarWidget().hide()
 
 
-def get_map_cursor():
+def get_map_cursor() -> QCursor:
     icon = qta.icon('fa.map-marker', color='gray')
     pixmap = icon.pixmap(icon.actualSize(QSize(32, 32)))
-    return QtGui.QCursor(pixmap)
+    return QCursor(pixmap)
