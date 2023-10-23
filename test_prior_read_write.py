@@ -96,9 +96,9 @@ class MicroscopeHandler(QObject):
     def go_to_absolute_position(self, position: Position):
         thread_goto = threading.Thread(target=self.write_to_port, args=(position, 0))
         thread_goto.start()
+        print("end")
 
     def go_to_relative_position_xy(self, x=0, y=0):
-        print("gooooooo to")
         thread_goto = threading.Thread(target=self.write_to_relative, args=(x, y, 0))
         thread_goto.start()
 
@@ -118,7 +118,7 @@ class MicroscopeHandler(QObject):
                 self._position_reached = False
 
                 time.sleep(delay)  # wait for a bit for data to be sent
-                self.reach_position_signal.emit()
+                # self.reach_position_signal.emit()
                 break
 
     def write_to_relative(self, x, y, delay=2):
@@ -130,7 +130,7 @@ class MicroscopeHandler(QObject):
                 self._position_reached = False
 
                 time.sleep(delay)  # wait for a bit for data to be sent
-                self.reach_position_signal.emit()
+                # self.reach_position_signal.emit()
                 break
 
     def handle_data(self, data):
@@ -139,7 +139,7 @@ class MicroscopeHandler(QObject):
         if data == "R":
             self._position_reached = True
             print("position reached")
-
+            self.reach_position_signal.emit()
         else:
             try:
                 x, y, z = [int(i) for i in data.split(",")]

@@ -1,6 +1,6 @@
 import sys
 from datetime import datetime
-from typing import Final, Union
+from typing import Union
 
 import qdarkstyle
 from PyQt5 import QtCore, QtGui, QtWidgets
@@ -20,15 +20,9 @@ from grid.grid_movement import GridMovement, Course, get_bounding_rec_grid
 from grid.grid_verif_qt import GridVerification
 from grid.several_grid_handler import GridsHandler, GridDefinition, transform_matrix_text2value
 from grid.share_serial import Y_LIMIT, X_LIMIT
+from hardware_constants import OVERLAP, IMAGE_SIZE, SLIDE_WIDTH, SPACE_BETWEEN_SLIDES, SLIDE_HEIGHT
 from main import PriorController
 from test_prior_read_write import PriorHandler, MicroscopeHandler
-
-SPACE_BETWEEN_SLIDES: Final = 3300
-SLIDE_WIDTH: Final = 26000
-SLIDE_HEIGHT: Final = 76000
-
-OVERLAP = 60
-IMAGE_SIZE = (210, 175)
 
 
 class myWindow(QMainWindow):
@@ -78,7 +72,6 @@ class myWindow(QMainWindow):
 
         self.hide_show_axis_shortcut = QShortcut(QKeySequence("Ctrl+H"), self)
 
-        self.timer = QBasicTimer()
         self.positions_counter = 0
 
         self.connect_actions()
@@ -98,12 +91,37 @@ class myWindow(QMainWindow):
     def acquisition_status(self, value):
         self._acquisition_status = value
         if self._acquisition_status:
-            self.timer.start(1000, self)
+            # self.timer.start(2000, self)
+
+            self.thread = QThread()
+
+            grids_pts = []
+            for grid in self.grids:
+                if grid is not None:
+                    grids_pts.append(self.get_grid_points(grid))
+
+            self.worker = AcquisitionWorker(parent=self, grids=grids_pts)
+            self.worker.moveToThread(self.thread)
+
+            self.thread.started.connect(self.worker.run)
+            self.worker.finished_signal.connect(self.thread.quit)
+            self.worker.finished_signal.connect(self.worker.deleteLater)
+            self.thread.finished.connect(self.thread.deleteLater)
+            self.worker.progression_change_signal.connect(self.report_progress)
+            self.worker.acquisition_grid_change_signal.connect(self.report_new_grid_acquisition)
+            # Step 6: Start the thread
+            self.thread.start()
 
             self.show_acquisition_window()
 
         else:
             self.grids_setup.on_acquisition = value
+
+    def report_progress(self, progress_value):
+        self.acquisition_window.progression = progress_value
+
+    def report_new_grid_acquisition(self, new_grid_nb: int):
+        self.acquisition_window.nb_completed_grids = new_grid_nb
 
     def show_acquisition_window(self):
         self.acquisition_window = StartAcquisitionMessageBox(nb_grids=self.get_nb_defined_grids())
@@ -111,26 +129,16 @@ class myWindow(QMainWindow):
 
         self.acquisition_status = False
 
-    def timerEvent(self, event):
-
-        # checking timer id
-        if event.timerId() == self.timer.timerId():
-            print("timer event")
-            points = self.get_grid_points(self.grids[0])
-            new_coord = points[self.positions_counter]
-            self.prior.coords = new_coord
-            self.positions_counter += 1
-
-    def get_grid_points(self, grid):
-        matrix, overlap = grid.matrix_length, 100 - OVERLAP
-        width_grid = int(IMAGE_SIZE[0] * (1 + matrix * (overlap / 100)))
-        length_grid = int(IMAGE_SIZE[1] * (1 + matrix * (overlap / 100)))
-
-        gm = GridMovement(x=0, y=0, img_size=IMAGE_SIZE, x_lim=(0, X_LIMIT), y_lim=(0, Y_LIMIT))
-        gm.course = Course().V_RIGHT
-        grid = gm.get_grid(start_pt=grid.start_position, final_pt=(width_grid, length_grid),
-                           percentage_non_overlap=(overlap / 100, overlap / 100))
-        return grid
+    # def get_grid_points(self, grid):
+    #     matrix, overlap = grid.matrix_length, 100 - OVERLAP
+    #     width_grid = int(IMAGE_SIZE[0] * (1 + matrix * (overlap / 100)))
+    #     length_grid = int(IMAGE_SIZE[1] * (1 + matrix * (overlap / 100)))
+    #
+    #     gm = GridMovement(x=0, y=0, img_size=IMAGE_SIZE, x_lim=(0, X_LIMIT), y_lim=(0, Y_LIMIT))
+    #     gm.course = Course().V_RIGHT
+    #     grid = gm.get_grid_from_matrix(start_pt=grid.start_position, matrix=(matrix, matrix),
+    #                                    percentage_non_overlap=(overlap / 100, overlap / 100))
+    #     return grid
 
     def get_nb_defined_grids(self) -> int:
         return len(list(filter(lambda x: x is not None, self.grids)))
@@ -150,14 +158,14 @@ class myWindow(QMainWindow):
         start_pt_x = grid_definition.start_position[0]
         start_pt_y = grid_definition.start_position[1]
         matrix = grid_definition.matrix_length
-        width_grid = round(IMAGE_SIZE[0] * (1 + matrix * (OVERLAP / 100)))
-        length_grid = round(IMAGE_SIZE[1] * (1 + matrix * (OVERLAP / 100)))
+
+        # width_grid = round(IMAGE_SIZE[0] * (1 + matrix * (OVERLAP / 100)))
+        # length_grid = round(IMAGE_SIZE[1] * (1 + matrix * (OVERLAP / 100)))
 
         gm = GridMovement(x=0, y=0, img_size=IMAGE_SIZE, x_lim=(0, X_LIMIT), y_lim=(0, Y_LIMIT))
         gm.course = Course().V_RIGHT
-        grid_points = gm.get_grid(start_pt=(start_pt_x, start_pt_y),
-                                  final_pt=(start_pt_x + width_grid, start_pt_y + length_grid),
-                                  percentage_non_overlap=(OVERLAP / 100, OVERLAP / 100))
+        grid_points = gm.get_grid_from_matrix(start_pt=(start_pt_x, start_pt_y), matrix=(matrix, matrix),
+                                              percentage_non_overlap=(OVERLAP / 100, OVERLAP / 100))
         return grid_points
 
     def connect_actions(self):
@@ -214,12 +222,13 @@ class myWindow(QMainWindow):
 
     def draw_bounding_rect_grid(self, bounding_rect):
         print(bounding_rect)
-        bounding_rect[2] += IMAGE_SIZE[0]
-        bounding_rect[3] += IMAGE_SIZE[1]
+        # bounding_rect[2] += IMAGE_SIZE[0]
+        # bounding_rect[3] += IMAGE_SIZE[1]
 
         graphic_bounding_rect = QGraphicsRectItem(
             QRectF(QPointF(bounding_rect[0], bounding_rect[1]), QPointF(bounding_rect[2], bounding_rect[3])))
-        q_pen = QPen(Qt.black, 250, Qt.DashDotLine)
+        q_pen = QPen(Qt.black, 2, Qt.DashDotLine)
+        q_pen.setCosmetic(True)
         graphic_bounding_rect.setPen(q_pen)
         graphic_bounding_rect.setData(0, "Bounding_Rect")
 
@@ -234,7 +243,7 @@ class myWindow(QMainWindow):
         self.prior_cursor = CrossItem(center_x_position=self._x, center_y_position=self._y)
         self.prior_cursor.color = QColor("#D86f12")
         self.prior_cursor.size = 2000
-        self.prior_cursor.thickness = 300
+        self.prior_cursor.thickness = 2
         self.scene.addItem(self.prior_cursor)
 
     def closeEvent(self, *args, **kwargs):
@@ -272,7 +281,6 @@ class myWindow(QMainWindow):
     def initialize_prior(self):
         self._prior.acceleration = 10
         self._prior.speed = 10
-
 
     @property
     def x(self) -> Union[int, None]:
@@ -406,6 +414,72 @@ class myWindow(QMainWindow):
         # painter.drawRect(rec)
 
 
+class AcquisitionWorker(QObject):
+    progression_change_signal = pyqtSignal(int)
+    acquisition_grid_change_signal = pyqtSignal(int)
+    finished_signal = pyqtSignal()
+
+    def __init__(self, parent, grids):
+        super().__init__(parent)
+        print("timer event")
+
+        self._position_counter = 0
+        self.grid_counter = 0
+        self.progress = 0
+
+        self.grids = grids
+        self.microscope_handler = self.parent().microscope_handler
+
+        self.microscope_handler.reach_position_signal.connect(self.go_to_next_position)
+
+    def run(self):
+        self.position_counter = 0
+        self.acquire_grid()
+
+    def go_to_first_point(self, start_position: Position) -> None:
+        self.microscope_handler.go_to_absolute_position(start_position)
+        # self.position_counter += 1
+
+    def acquire_grid(self) -> None:
+        grid = self.grids[self.grid_counter]
+        # go to first point
+        self.go_to_first_point(start_position=Position(*grid[0]))
+
+    def go_to_next_position(self) -> None:
+        grid = self.grids[self.grid_counter]
+        if self._position_counter < len(grid):
+            self.microscope_handler.go_to_absolute_position(
+                position=Position(*self.grids[self.grid_counter][self._position_counter]))
+            self.position_counter += 1
+        else:
+            self.grid_counter += 1
+
+            if self.grid_counter < len(self.grids):
+                self.position_counter = 0
+                self.go_to_first_point(start_position=Position(*self.grids[self.grid_counter][self._position_counter]))
+            else:
+                print("success")
+                self.finished_signal.emit()
+
+    @property
+    def position_counter(self) -> int:
+        return self._position_counter
+
+    @position_counter.setter
+    def position_counter(self, value: int) -> None:
+        self._position_counter = value
+        self.progression_change_signal.emit(round((self._position_counter / len(self.grids[self._grid_counter])) * 100))
+
+    @property
+    def grid_counter(self):
+        return self._grid_counter
+
+    @grid_counter.setter
+    def grid_counter(self, value):
+        self._grid_counter = value
+        self.acquisition_grid_change_signal.emit(self._grid_counter)
+
+
 class StartAcquisitionMessageBox(QDialog):
     acquisition_status_signal = pyqtSignal(bool)
 
@@ -435,7 +509,8 @@ class StartAcquisitionMessageBox(QDialog):
 
         progress_layout = QHBoxLayout()
         progress_layout.addWidget(self.progress_bar)
-        progress_layout.addWidget(QLabel(f"{self._nb_completed_grids} / {self._nb_grids}"))
+        self.progression_on_grids_label = QLabel(f"{self._nb_completed_grids} / {self._nb_grids}")
+        progress_layout.addWidget(self.progression_on_grids_label)
 
         layout.addLayout(progress_layout)
 
@@ -458,19 +533,28 @@ class StartAcquisitionMessageBox(QDialog):
         self.acquisition_status = True
 
     @property
-    def acquisition_possibility(self):
+    def nb_completed_grids(self) -> int:
+        return self._nb_completed_grids
+
+    @nb_completed_grids.setter
+    def nb_completed_grids(self, value: int) -> None:
+        self._nb_completed_grids = value
+        self.progression_on_grids_label.setText(f"{self._nb_completed_grids} / {self._nb_grids}")
+
+    @property
+    def acquisition_possibility(self) -> bool:
         return self._acquisition_possibility
 
     @acquisition_possibility.setter
-    def acquisition_possibility(self, value):
+    def acquisition_possibility(self, value: bool) -> None:
         self._acquisition_possibility = value
 
     @property
-    def progression(self):
+    def progression(self) -> float:
         return self._progression
 
     @progression.setter
-    def progression(self, value):
+    def progression(self, value: float) -> None:
         self._progression = value
         self.progress_bar.setValue(self._progression)
 
@@ -479,7 +563,7 @@ class StartAcquisitionMessageBox(QDialog):
         return self._acquisition_status
 
     @acquisition_status.setter
-    def acquisition_status(self, value: bool):
+    def acquisition_status(self, value: bool) -> None:
         self._acquisition_status = value
         if value:
             self.hour_label.setText(self.get_current_hour())
@@ -488,16 +572,16 @@ class StartAcquisitionMessageBox(QDialog):
         self.acquisition_status_signal.emit(value)
 
     @staticmethod
-    def get_current_hour():
+    def get_current_hour() -> str:
         datetime_now = datetime.now()
         return datetime_now.strftime("%H:%M:%S")
 
-    def connect_actions(self):
+    def connect_actions(self) -> None:
         self.abort_btn.clicked.connect(self.show_close_confirmation_box)
         # self.start_acquisition_btn.clicked.connect(lambda: setattr(self, "acquisition_status",
         #                                                            not self._acquisition_status))
 
-    def show_close_confirmation_box(self):
+    def show_close_confirmation_box(self) -> None:
         confirmation_close_box = QMessageBox()
         confirmation_close_box.setIcon(QMessageBox.Warning)
         confirmation_close_box.setText("Are you sure you want to stop this acquisition ?")
@@ -511,7 +595,7 @@ class StartAcquisitionMessageBox(QDialog):
         else:
             confirmation_close_box.close()
 
-    def display(self):
+    def display(self) -> None:
         self.setStyleSheet("#ProgressBar { min-height: 18px; max-height: 18px; border-radius: 8px; }")
 
 

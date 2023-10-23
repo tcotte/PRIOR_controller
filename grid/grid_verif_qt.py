@@ -12,8 +12,7 @@ from PyQt5.QtWidgets import QGraphicsScene, QApplication, QGraphicsPixmapItem, Q
 
 from grid.display import Display
 from grid.grid_movement import Course, GridMovement, get_bounding_rec_grid
-
-IMAGE_SIZE: typing.Final = (210, 175)
+from hardware_constants import IMAGE_SIZE
 
 
 class DockedForm(QWidget):
@@ -127,13 +126,20 @@ class MainWindow(QMainWindow):
         self.win.runLongTask()
 
     def generate_grid(self, dict_values):
-        matrix, overlap = dict_values["matrix"], 100-dict_values["overlap"]
-        width_grid = int(IMAGE_SIZE[0] * (matrix * (overlap / 100)))
-        length_grid = int(IMAGE_SIZE[1] * (matrix * (overlap / 100)))
+        matrix, overlap = dict_values["matrix"], 100 - dict_values["overlap"]
+        if overlap < 50:
+            width_grid = int(IMAGE_SIZE[0] * (matrix * (overlap / 100)))
+            length_grid = int(IMAGE_SIZE[1] * (matrix * (overlap / 100)))
+        else:
+            width_grid = int(IMAGE_SIZE[0] * (matrix * (overlap / 100))) + 1
+            length_grid = int(IMAGE_SIZE[1] * (matrix * (overlap / 100))) + 10
 
         gm = GridMovement(x=0, y=0, img_size=IMAGE_SIZE, x_lim=(0, 80000), y_lim=(0, 80000))
         gm.course = Course().V_RIGHT
-        grid = gm.get_grid(start_pt=(0, 0), final_pt=(width_grid, length_grid),
+        # grid = gm.get_grid(start_pt=(0, 0), final_pt=(width_grid, length_grid),
+        #                    percentage_non_overlap=(overlap / 100, overlap / 100))
+
+        grid = gm.get_grid_from_matrix(start_pt=(600, 600), matrix=(matrix, matrix),
                            percentage_non_overlap=(overlap / 100, overlap / 100))
         self.generated_grid_signal.emit(grid)
 
@@ -142,6 +148,7 @@ class GridVerification(QWidget):
 
     def __init__(self, parent=None):
         super().__init__()
+        self.current_lens = None
         self.parent = parent
 
         self.setMinimumWidth(300)
@@ -154,6 +161,7 @@ class GridVerification(QWidget):
         # self.view.setMinimumWidth(600)
         # self.view.setMinimumWidth(500)
         # self.draw_lens()
+
 
         # gm = GridMovement(x=0, y=0, img_size=IMAGE_SIZE, x_lim=(0, 5000), y_lim=(0, 5000))
         # gm.course = Course().V_RIGHT
@@ -195,7 +203,7 @@ class GridVerification(QWidget):
             self.draw_grid(bounding_rect)
             # self.draw_lens()
             # self.move_rectangle(counter=0)
-            self.scene.setSceneRect(0, 0, bounding_rect[2], bounding_rect[3])
+            # self.scene.setSceneRect(0, 0, bounding_rect[2], bounding_rect[3])
             # self.fitView()
             self.view.on_new_image_flux()
             self.scene.update()
@@ -205,45 +213,11 @@ class GridVerification(QWidget):
             self.parent.generated_grid_signal.connect(lambda value: setattr(self, "grid", value))
 
     def draw_grid(self, bounding_rect):
-        #bounding_rect[2] += IMAGE_SIZE[0]
-        #bounding_rect[3] += IMAGE_SIZE[1]
-        print(bounding_rect)
 
-        """
-        m = np.ones((bounding_rect[3] + 1, bounding_rect[2] + 1, 3), dtype=np.uint8) * 255
-
-        for point in self.grid:
-            sub_img = m[point[1]:point[1] + IMAGE_SIZE[1], point[0]:point[0] + IMAGE_SIZE[0]]
-            white_rect = np.ones(sub_img.shape, dtype=np.uint8) * 10
-
-            alpha = 0.9
-            res = cv2.addWeighted(sub_img, alpha, white_rect, 1 - alpha, 0)
-
-            # Putting the image back to its position
-            m[point[1]:point[1] + IMAGE_SIZE[1], point[0]:point[0] + IMAGE_SIZE[0]] = res
-
-            m = draw_square_contours(IMAGE_SIZE, point, m, thickness=int(np.floor(np.sqrt(bounding_rect[2]) / 15)))
-
-        image = m.astype(int)
-        q_img = qimage2ndarray.array2qimage(image)
-        item = QGraphicsPixmapItem(QPixmap.fromImage(q_img))
-
-        self.replace_pixmap_in_scene(new_pixmap_item=item)
-        """
         grid_layer = QGraphicsItemGroup()
         grid_layer.setData(0, "grid")
         for point in self._grid:
-            q_brush = QBrush()
-            filled_color = QColor(Qt.red)
-            q_brush.setColor(filled_color)
-            q_pen = QPen(Qt.black)
-            q_pen.setWidth(1)
-            q_pen.setCosmetic(True)
-            rec = QGraphicsRectItem(point[0], point[1], IMAGE_SIZE[0], IMAGE_SIZE[1])
-            rec.setPen(q_pen)
-            rec.setBrush(QColor.fromRgb(10, 10, 10, 50))
-            rec.setData(0, "grid")
-
+            rec = GraphicsCellItem(point[0], point[1], IMAGE_SIZE[0], IMAGE_SIZE[1])
             grid_layer.addToGroup(rec)
 
         self.replace_grid_layer_in_scene(new_grid_layer=grid_layer)
@@ -269,17 +243,18 @@ class GridVerification(QWidget):
         self.scene.addItem(new_pixmap_item)
 
     def draw_lens(self):
-
+        """
         for item in self.scene.items():
             if isinstance(item, QGraphicsRectItem) and item.data(0) != "grid":
                 self.scene.removeItem(item)
-                del (item)
+                del item
 
+        """
+        start_pt_x, start_pt_y = self._grid[0]
+        self.current_lens = GraphicsLensItem(QRectF(start_pt_x, start_pt_y, IMAGE_SIZE[0], IMAGE_SIZE[1]),
+                                             name="current")
 
-
-        self.rect = GraphicsLensItem(QRectF(0, 0, IMAGE_SIZE[0], IMAGE_SIZE[1]), name="current")
-
-        self.scene.addItem(self.rect)
+        self.scene.addItem(self.current_lens)
 
     def fitView(self):
         rect = self.scene.sceneRect()
@@ -287,6 +262,8 @@ class GridVerification(QWidget):
         self.view.fitInView(rect, Qt.KeepAspectRatioByExpanding)
 
     def runLongTask(self):
+        self.draw_lens()
+
         self.thread = QThread()
         self.worker = Worker(nb_steps=len(self.grid))
         self.worker.moveToThread(self.thread)
@@ -302,16 +279,24 @@ class GridVerification(QWidget):
         self.parent.progression = 100
 
     def move_rectangle(self, counter: int):
+
         self.parent.progression = round((counter / len(self._grid) * 100))
 
         if counter != 0:
             new_rectangle = GraphicsLensItem(
-                QRectF(self._grid[counter - 1][0], self._grid[counter - 1][1], IMAGE_SIZE[0], IMAGE_SIZE[1]), name="old")
+                QRectF(self._grid[counter - 1][0], self._grid[counter - 1][1], IMAGE_SIZE[0], IMAGE_SIZE[1]),
+                name="old")
             new_rectangle.setZValue(1)
 
             self.scene.addItem(new_rectangle)
-        self.rect.setPos(self._grid[counter][0], self._grid[counter][1])
-        self.rect.setZValue(10)
+
+        # q_point =
+        self.current_lens.mapFromScene(self._grid[counter][0], self._grid[counter][1])
+        # self.current_lens.update(self._grid[counter][0], self._grid[counter][1], IMAGE_SIZE[0], IMAGE_SIZE[1])
+
+        print(self._grid[counter][0], self._grid[counter][1])
+        self.current_lens.setZValue(10)
+
         self.scene.update()
 
 
@@ -344,6 +329,22 @@ class GraphicsLensItem(QGraphicsRectItem):
             pen = QPen(Qt.darkRed)
             pen.setWidth(5)
             self.setPen(pen)
+
+
+class GraphicsCellItem(QGraphicsRectItem):
+    def __init__(self, rect, *args, **kwargs):
+        super().__init__(rect, *args, **kwargs)
+        self.display()
+
+    def display(self):
+        q_brush = QBrush()
+        filled_color = QColor(Qt.red)
+        q_brush.setColor(filled_color)
+        q_pen = QPen(Qt.black)
+        q_pen.setWidth(1)
+        q_pen.setCosmetic(True)
+        self.setPen(q_pen)
+        self.setBrush(QColor.fromRgb(10, 10, 10, 50))
 
 
 class DockedAcquisition(QWidget):
@@ -445,7 +446,7 @@ class Worker(QObject):
     def run(self):
         """Long-running task."""
         for i in range(self._nb_steps):
-            time.sleep(1)
+            time.sleep(0.3)
             self.progress.emit(i)
         self.finished.emit()
 

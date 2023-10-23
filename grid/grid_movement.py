@@ -2,6 +2,8 @@ from typing import Tuple, Union, List
 
 import numpy as np
 
+from app.utils.position import Position
+
 APP_SIZE = (700, 500)
 GRID = (200, 200)  # width, height -> 1 pixel equals 10 µm
 # IMAGE_SIZE = (5, 5)  # width, height -> camera image size
@@ -240,7 +242,70 @@ class GridMovement:
     def stop(self):
         self._direction = 0
 
-    def get_grid(self, start_pt: Tuple[int, int], final_pt: Tuple[int, int], percentage_non_overlap: Union[Tuple, float]):
+    def get_grid_from_matrix(self, start_pt: Tuple[int, int], matrix: Tuple[int, int],
+                             percentage_non_overlap: Union[Tuple, float]):
+        self.velocity = percentage_non_overlap
+        position_reached = False
+
+        grid = []
+        self.direction = 0
+        self.start_pt = start_pt
+        self.x, self.y = self.start_pt
+        x, y = self.start_pt
+
+        grid.append(list(self.start_pt))
+        matrix = (matrix[0] - 1, matrix[1] - 1)
+        matrix_counter = [0, 0]
+
+        while not position_reached:
+
+            if self._course == Course().V_RIGHT or self._course == Course().V_LEFT:
+                if self._direction == 0:  # DOWN
+                    print("down")
+                    if matrix_counter[1] == matrix[1]:
+                        self.direction = 2
+
+                    # if matrix_counter[1] == 0 and matrix_counter[0] != 0:
+                    #     self.direction = 2
+
+                    else:
+                        self.y += self._velocity[1]
+                        matrix_counter[1] += 1
+                        grid.append([self._x, self._y])
+
+                elif self._direction == 2:  # RIGHT
+                    self.x += self._velocity[0]
+                    matrix_counter[0] += 1
+                    grid.append([self._x, self._y])
+
+                    if matrix_counter[0] % 2 == 0:
+
+                        self.direction = 0
+                    else:
+                        self.direction = 3
+
+                elif self._direction == 3:  # UP
+                    if matrix_counter[1] != 0:
+                        self.y -= self._velocity[1]
+                        matrix_counter[1] -= 1
+                        grid.append([self._x, self._y])
+
+                    else:
+                        self.direction = 2
+
+            if matrix_counter == list(matrix):
+                position_reached = True
+
+        if matrix[0] % 2 != 0:
+            while matrix_counter[1] != 0:
+                self.y -= self._velocity[1]
+                matrix_counter[1] -= 1
+                grid.append([self._x, self._y])
+
+        return grid
+
+    def get_grid(self, start_pt: Tuple[int, int], final_pt: Tuple[int, int],
+                 percentage_non_overlap: Union[Tuple, float]):
         self.final_pt = final_pt
         self.start_pt = start_pt
 
@@ -290,6 +355,21 @@ class GridMovement:
                     x, y = grid[-1]
 
         return grid
+
+    @staticmethod
+    def grid_translation(new_start_pt: Position, grid):
+        new_grid = []
+
+        current_start_point = Position(*grid[0])
+        offset_x = current_start_point.x - new_start_pt.x
+        offset_y = current_start_point.y - new_start_pt.y
+
+        for pt in grid:
+            pt[0] -= offset_x
+            pt[1] -= offset_y
+            new_grid.append(pt)
+
+        return new_grid
 
     @staticmethod
     def remove_duplicate_positions(grid: List) -> List:
@@ -366,4 +446,7 @@ if __name__ == "__main__":
     gm.course = Course().V_RIGHT
     # gm.recover_x = 1
     # gm.recover_y = 1
-    print(gm.get_grid(start_pt=(0, 0), final_pt=(1000, 1000), percentage_non_overlap=(0.5, 0.5)))
+    # print(gm.get_grid(start_pt=(0, 0), final_pt=(1000, 1000), percentage_non_overlap=(0.5, 0.5)))
+    grid = gm.get_grid_from_matrix(start_pt=(800, 800), matrix=(10, 10),
+                                  percentage_non_overlap=0.5)
+    print("ok")

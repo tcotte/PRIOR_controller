@@ -53,6 +53,7 @@ class CrossItem(QGraphicsItem):
     def paint(self, painter, option, widget):
         pen = QPen(self._color)
         pen.setWidth(self._thickness)
+        pen.setCosmetic(True)
         painter.setPen(pen)
 
         painter.drawLine(QPoint(round(self._center_x_position - self._size / 2), self._center_y_position),
