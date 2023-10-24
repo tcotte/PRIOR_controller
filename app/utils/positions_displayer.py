@@ -75,10 +75,10 @@ class DisplayCurrentValues(QWidget):
                 padding-bottom: 0px;
                 margin-top: 0px;
                 margin-bottom: 0px;
-                padding-right: 40px;
-                padding-left: 40px;
+                padding-right: 0px;
+                padding-left: 0px;
                 background-color: #14171f;
-                border-radius: 50px;
+                border-radius: 40px;
             }
             """
         )
@@ -90,6 +90,8 @@ class DisplayCurrentValues(QWidget):
         self.x_dv.resize(self.size())
         self.y_dv.resize(self.size())
         self.z_dv.resize(self.size())
+
+        print("window size:",self.size())
 
 
 class DisplayValue(QWidget):
@@ -112,7 +114,7 @@ class DisplayValue(QWidget):
         self.value_qlcd = QLCDNumber(self)
         self.value_qlcd.setDecMode()
         self.value_qlcd.display(self._value)
-        self.value_qlcd.setFixedWidth(150)
+        self.value_qlcd.setFixedWidth(100)
 
         layout = QHBoxLayout(frame)
 
@@ -135,10 +137,10 @@ class DisplayValue(QWidget):
         resize_x = True
         resize_y = True
         if self.prev_parent_size is not None:
-            if self.prev_parent_size.width() == a0.width():
-                resize_x = False
             if self.prev_parent_size.height() == a0.height():
                 resize_y = False
+            if self.prev_parent_size.width() == a0.width():
+                resize_x = False
 
         print("self" + self.key_label.text() + ":", self.width(), self.height(), "minimums:", self.minimumWidth(),
               self.minimumHeight(), "resize x:", resize_x, "resize y", resize_y)
@@ -162,10 +164,11 @@ class DisplayValue(QWidget):
         self.setFixedHeight(height)
 
         # re-set minimum size
-        self.setMinimumWidth(300)
-        self.setMinimumHeight(100)
+        self.setMinimumWidth(175)
+        self.setMinimumHeight(75)
 
         self.prev_parent_size = a0
+        
         """width = round(a0.width() / 4)
         height = round(width/3)             # round(a0.height() / 1.5)
         if width < self.minimumWidth():
@@ -196,6 +199,10 @@ class DisplayValue(QWidget):
             new_font = self.key_label.font()
             new_font.setPointSizeF(round(new_font_size * 0.7))
             self.key_label.setFont(new_font)
+
+            # self.value_qlcd.setFixedHeight(new_font_size*1.4)
+            qlcd_width = available_space.width()-new_font_size*5
+            self.value_qlcd.setFixedWidth(qlcd_width)
 
     def display(self):
         """if self.parent is not None:

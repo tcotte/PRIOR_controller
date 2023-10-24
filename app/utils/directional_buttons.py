@@ -79,7 +79,7 @@ class DirectionalButtons(QWidget):
         super().resizeEvent(a0)
         # create square size
         # if using only self.width() or self.height() without trimming the values, the window will endlessly resize itself
-        size = QSize(min(int(self.width() / 1.5), int(self.height() / 1.5)), min(int(self.width() / 1.5), int(self.height() / 1.5)))
+        size = QSize(min(int(self.width() / 1.1), int(self.height() / 1.1)), min(int(self.width() / 1.1), int(self.height() / 1.1)))
         # buttons sizes
         btn_size = QSize(min(int(size.width() / 4), int(size.height() / 4)),
                          min(int(size.width() / 4), int(size.height() / 4)))
