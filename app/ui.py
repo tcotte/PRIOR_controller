@@ -6,8 +6,8 @@ from time import sleep
 import qdarkstyle
 import qtawesome as qta
 from PyQt5 import QtGui, QtCore
-from PyQt5.QtCore import QSize, Qt, QObject, pyqtSignal, QThread
-from PyQt5.QtGui import QFont, QKeyEvent
+from PyQt5.QtCore import QSize, Qt, QObject, pyqtSignal, QThread, QRect
+from PyQt5.QtGui import QFont, QKeyEvent, QFontMetrics
 from PyQt5.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QGridLayout, QLCDNumber, \
     QLabel, QFrame, QSizePolicy, QLayout, QSpacerItem, QFormLayout, QPushButton
 from qtwidgets import AnimatedToggle
@@ -52,33 +52,16 @@ class DirectionalButtons(QWidget):
 
         self.only_two = only_two
 
-        up_icon = qta.icon('ri.arrow-up-s-line')
-        self.up_button = LongClickButton(up_icon, '')
-        self.up_button.setFixedSize(QSize(size_btn, size_btn))
-        self.up_button.setIconSize(QSize(round(size_btn), round(size_btn)))
-        self.up_button.setObjectName('up')
-
-        down_icon = qta.icon('ri.arrow-down-s-line')
-        self.down_button = LongClickButton(down_icon, '')
-        self.down_button.setFixedSize(QSize(size_btn, size_btn))
-        self.down_button.setIconSize(QSize(round(size_btn), round(size_btn)))
-        self.down_button.setObjectName('down')
+        self.up_button = ArrowButton(Directions.UP, round(size_btn))
+        self.down_button = ArrowButton(Directions.DOWN, round(size_btn))
 
         if not only_two:
-            left_icon = qta.icon('ri.arrow-left-s-line')
-            self.left_button = LongClickButton(left_icon, '')
-            self.left_button.setFixedSize(QSize(size_btn, size_btn))
-            self.left_button.setIconSize(QSize(round(size_btn), round(size_btn)))
-            self.left_button.setObjectName('left')
-
-            right_icon = qta.icon('ri.arrow-right-s-line')
-            self.right_button = LongClickButton(right_icon, '')
-            self.right_button.setFixedSize(QSize(size_btn, size_btn))
-            self.right_button.setIconSize(QSize(round(size_btn), round(size_btn)))
-            self.right_button.setObjectName('right')
+            self.left_button = ArrowButton(Directions.LEFT, round(size_btn))
+            self.right_button = ArrowButton(Directions.RIGHT, round(size_btn))
 
         layout = QGridLayout()
         layout.setObjectName('layout')
+        """
         layout.addWidget(self.up_button, 0, 1, 1, 1)
         if not only_two:
             layout.addWidget(self.left_button, 1, 0, 1, 1)
@@ -88,13 +71,63 @@ class DirectionalButtons(QWidget):
             space.setFixedSize(QSize(size_btn, size_btn))
             layout.addWidget(space, 1, 0, 1, 1)
         layout.addWidget(self.down_button, 2, 1, 1, 1)
+        """
+        if not only_two:
+            layout.addWidget(self.up_button, 0, 1)
+            layout.addWidget(self.left_button, 1, 0)
+            layout.addWidget(self.right_button, 1, 2)
+            layout.addWidget(self.down_button, 2, 1)
+        else:
+            layout.addWidget(self.up_button, 0, 0)
+            space = QWidget()
+            space.setFixedSize(QSize(size_btn, size_btn))
+            layout.addWidget(space, 1, 0)
+            layout.addWidget(self.down_button, 2, 0)
 
-        layout.setSizeConstraint(QLayout.SetFixedSize)
-        self.setLayout(layout)
+        # layout.setSizeConstraint(QLayout.SetFixedSize)
+
+        # create a parent widget for the buttons to have a more flexible control over the button layout
+        self.button_holder = QWidget()
+        self.button_holder.setLayout(layout)
+        layout_button_holder = QHBoxLayout()
+        layout_button_holder.addWidget(self.button_holder)
+
+        self.setMinimumSize(QSize(200, 200))
+
+        self.setLayout(layout_button_holder)
 
         self.display()
 
         self.connect_actions()
+
+    def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:
+        super().resizeEvent(a0)
+        # create square size
+        # if using only self.width() or self.height() without trimming the values, the window will endlessly resize itself
+        print(self.size())
+        size = QSize(min(int(self.width() / 1.5), int(self.height() / 1.5)),
+                     min(int(self.width() / 1.5), int(self.height() / 1.5)))
+        # buttons sizes
+        btn_size = QSize(min(int(size.width() / 4), int(size.height() / 4)),
+                         min(int(size.width() / 4), int(size.height() / 4)))
+        self.button_holder.setFixedSize(size)
+        self.resize_buttons(btn_size)
+
+    def resize_buttons(self, size=None):
+        print(size)
+        if not self.only_two:
+            list_btns = [self.up_button, self.left_button, self.right_button, self.down_button]
+        else:
+            list_btns = [self.up_button, self.down_button]
+        if size is not None:
+            w = size.width()
+            h = size.height()
+        else:
+            w = self.size().width() / 4
+            h = self.size().height() / 4
+        # print(w, h)
+        for btn in list_btns:
+            btn.resize_icon(QSize(round(min(w, h)), round(min(w, h))))
 
     def connect_actions(self):
         if not self.only_two:
@@ -131,32 +164,67 @@ class DirectionalButtons(QWidget):
     def display(self):
         self.setStyleSheet(
             """
+            layout {
+                margin: 500px;
+            }
             QPushButton {
-            display: inline-block;
-            background-color: #4CAF50;
-            
-            color: #fff;
-            text-align: center;
+                display: inline-block;
+                background-color: #4CAF50;
 
-            text-decoration: none;
-            border-radius: %s;
+                color: #fff;
+                text-align: center;
+
+                text-decoration: none;
+                border-radius: %s;
             }     
-            
+
             QPushButton:hover {
                 background-color: #6ccc70;
             }
-            
+
             QPushButton:pressed {
                 background-color: #b7c4b7;     
             }
             """ % (str(self.radius)))
 
 
+class ArrowButton(LongClickButton):
+
+    def __init__(self, direction: int, size_btn: int):
+        if direction == Directions.LEFT:
+            name = "left"
+        elif direction == Directions.RIGHT:
+            name = "right"
+        elif direction == Directions.UP:
+            name = "up"
+        else:
+            name = "down"
+        icon = qta.icon(f"ri.arrow-{name}-s-line")
+        super(ArrowButton, self).__init__(icon, '')
+
+        self.setFixedSize(QSize(size_btn, size_btn))
+        self.setIconSize(QSize(size_btn, size_btn))
+        self.setObjectName(name)
+
+    def resize_icon(self, size: QSize):
+        self.setFixedSize(size)
+        self.setIconSize(size)
+
+        # re-set the button's border radius acccording to its new size
+        self.setStyleSheet(
+            """
+            QPushButton {
+                border-radius: %s;
+            }
+            """ % str(int(self.iconSize().width() / 2))
+        )
+
+
 class XYHandler(QWidget):
     def __init__(self, parent, contracted_widget: bool = False):
         super().__init__(parent)
 
-        self._contracted_widget = contracted_widget
+        self.contracted_widget = contracted_widget
 
         # arrows
         # speed
@@ -196,7 +264,7 @@ class XYHandler(QWidget):
         layout.addLayout(h_layout)
         layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
         layout.addLayout(layout_btn)
-        if not self._contracted_widget:
+        if not self.contracted_widget:
             layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
             layout.addWidget(QHLine())
             layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
@@ -217,12 +285,12 @@ class XYHandler(QWidget):
         self.speed_slider.setValue(self.convert_prior_speed_2_mms(self.main_window.prior.speed))
 
     def convert_prior_speed_2_mms(self, value_ps):
-        ratio_ps_mms = 100/8
-        return value_ps/ratio_ps_mms
+        ratio_ps_mms = 100 / 8
+        return value_ps / ratio_ps_mms
 
     def convert_mms_2_prior_speed(self, value_mms):
-        ratio_ps_mms = 100/8
-        return value_mms*ratio_ps_mms
+        ratio_ps_mms = 100 / 8
+        return value_mms * ratio_ps_mms
 
     def connect_actions(self) -> None:
         self.go_to_btn.clicked.connect(self.open_absolute_position_window)
@@ -275,7 +343,7 @@ class XYHandler(QWidget):
         self.prior.set_relative_position_steps(*position)
 
     def open_absolute_position_window(self) -> None:
-        dlg = GoToXY(x_position=self.main_window.x, y_position=self.main_window.y)
+        dlg = GoToXY(x_position=self.main_window.x, y_position=self.main_window.y, parent=self)
         result = dlg.exec_()
 
         if result == 0:
@@ -295,7 +363,7 @@ class XYHandler(QWidget):
 class ZHandler(QWidget):
     def __init__(self, parent, contracted_widget: bool = False):
         super().__init__(parent)
-        self._contracted_widget = contracted_widget
+        self.contracted_widget = contracted_widget
 
         # arrows
         # speed
@@ -326,7 +394,6 @@ class ZHandler(QWidget):
         self.acceleration_slider = QLabeledSlider(Qt.Orientation.Horizontal)
         self.acceleration_slider.setRange(4, 100)
 
-
         spacer = QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         layout = QVBoxLayout()
@@ -336,7 +403,7 @@ class ZHandler(QWidget):
         layout.addLayout(h_layout)
         layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
         layout.addLayout(layout_btn)
-        if not self._contracted_widget:
+        if not self.contracted_widget:
             layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
             layout.addWidget(QHLine())
             layout.addItem(QSpacerItem(20, 30, QSizePolicy.Minimum, QSizePolicy.Expanding))
@@ -378,7 +445,7 @@ class ZHandler(QWidget):
             raise f"The direction {direction.upper()} is not taken in charge on the Z axis'"
 
     def open_absolute_position_window(self) -> None:
-        dlg = GoToZ(z_position=self.main_window.z)
+        dlg = GoToZ(z_position=self.main_window.z, parent=self)
 
         result = dlg.exec_()
 
@@ -516,7 +583,14 @@ class DisplayCurrentValues(QWidget):
             }
             """
         )
-        self.setMaximumHeight(150)
+        # self.setMaximumHeight(150)
+
+    def resizeEvent(self, a0: QtGui.QResizeEvent) -> None:
+        # print(self.size())
+        super().resizeEvent(a0)
+        self.x_dv.resize(self.size())
+        self.y_dv.resize(self.size())
+        self.z_dv.resize(self.size())
 
 
 class DisplayValue(QWidget):
@@ -525,10 +599,10 @@ class DisplayValue(QWidget):
         super().__init__()
         self._value = None
 
-        label_font = QFont()
-        label_font.setStyleHint(QFont.Courier)
-        key_label = QLabel(key)
-        key_label.setFont(label_font)
+        self.label_font = QFont()
+        self.label_font.setStyleHint(QFont.Courier)
+        self.key_label = QLabel(key)
+        self.key_label.setFont(self.label_font)
 
         frame = QFrame()
         frame.setObjectName("frame")
@@ -536,13 +610,14 @@ class DisplayValue(QWidget):
         frame.setFrameShadow(QFrame.Plain)
         frame.setLineWidth(6)
 
-        self.value_qlcd = QLCDNumber()
+        self.value_qlcd = QLCDNumber(self)
         self.value_qlcd.setDecMode()
         self.value_qlcd.display(self._value)
+        self.value_qlcd.setFixedWidth(150)
 
         layout = QHBoxLayout(frame)
 
-        layout.addWidget(key_label)
+        layout.addWidget(self.key_label)
         layout.addWidget(self.value_qlcd)
 
         lay = QHBoxLayout()
@@ -552,26 +627,92 @@ class DisplayValue(QWidget):
 
         self.display()
 
+        self.prev_parent_size = None
+        if self.parent is not None:
+            self.prev_parent_size = self.parent.size()
+
     def resize(self, a0: QtCore.QSize) -> None:
-        self.display()
+        # flags to prevent visual issues
+        resize_x = True
+        resize_y = True
+        if self.prev_parent_size is not None:
+            if self.prev_parent_size.width() == a0.width():
+                resize_x = False
+            if self.prev_parent_size.height() == a0.height():
+                resize_y = False
+
+        print("self" + self.key_label.text() + ":", self.width(), self.height(), "minimums:", self.minimumWidth(),
+              self.minimumHeight(), "resize x:", resize_x, "resize y", resize_y)
+
+        if resize_x:
+            width = round(a0.width() / 4)
+        else:
+            width = self.width()
+
+        if resize_y:
+            height = round(width / 3)  # round(a0.height() / 1.5)
+        else:
+            height = self.height()
+
+        if width < self.minimumWidth():
+            width = self.minimumWidth()
+            height = self.minimumHeight()
+
+        self.resizeElements(width, height)
+        self.setFixedWidth(width)
+        self.setFixedHeight(height)
+
+        # re-set minimum size
+        self.setMinimumWidth(300)
+        self.setMinimumHeight(100)
+
+        self.prev_parent_size = a0
+        """width = round(a0.width() / 4)
+        height = round(width/3)             # round(a0.height() / 1.5)
+        if width < self.minimumWidth():
+            width = self.minimumWidth()
+            height = self.minimumHeight()
+
+        self.resizeElements(width, height)
+        self.setFixedWidth(width)
+        self.setFixedHeight(height)
+
+        # re-set minimum size
+        self.setMinimumWidth(300)
+        self.setMinimumHeight(100)"""
+
+    def resizeElements(self, width, height):
+        # https://stackoverflow.com/questions/40861305/dynamically-change-font-size-of-qlabel-to-fit-available-space
+        # total space available
+        available_space = QRect(self.x(), self.y(), width, height)
+        # get space taken by key_label
+        text_space: QRect = QFontMetrics(self.label_font).boundingRect(self.key_label.text())
+
+        factorw = (available_space.width() / 2) / float(text_space.width())
+        factorh = (available_space.height() / 2) / float(text_space.height())
+        factor = min(factorw, factorh)
+
+        if factor < 0.95 or factor > 1.05:
+            new_font_size = self.label_font.pointSizeF() * factor
+            new_font = self.key_label.font()
+            new_font.setPointSizeF(round(new_font_size * 0.7))
+            self.key_label.setFont(new_font)
 
     def display(self):
-        if self.parent is not None:
+        """if self.parent is not None:
             print(self.parent.size())
 
-        print(self.parent.size())
+        print(self.parent.size())"""
 
         self.setContentsMargins(0, 0, 0, 0)
-        self.setFixedWidth(round(self.parent.size().width()/(640/400)))
-        self.setFixedHeight(round(self.parent.size().height()/(480/90)))
+        # font-size: 28px;
         self.setStyleSheet(
             """
             QLabel {
-            
+
               text-align: center;
 
               margin-top: 0px;
-              font-size: 28px;
               font-family: Arial, Helvetica, sans-serif;
               background-color: None;
 
@@ -582,7 +723,7 @@ class DisplayValue(QWidget):
                 background-color: None;
                 margin: None;
             }
-            
+
             QHBoxLayout {
                 border-radius: 50%;
                 background-color: gray;
@@ -590,13 +731,13 @@ class DisplayValue(QWidget):
                 margin-bottom:0px;
                 padding:None;
             }
-            
+
             QFrame#frame {
                 border: 1px dashed rgba(255, 255, 255, 0.6);
                 border-radius: 6px;
             }
-            
-            
+
+
             """
         )
 
@@ -630,14 +771,13 @@ class RealTimeCoordWorker(QObject):
         super().__init__()
         # self.prior = parent.prior
         self.parent = parent
-        self.delay_refresh = 0.1
+        self.delay_refresh = 0.5
 
     def run(self):
         """Long-running task."""
         while True:
             # print(self.parent.prior.busy)
             if not self.parent.prior.busy:
-
                 sleep(self.delay_refresh)
                 # print(self.prior.coords)
                 lock.acquire(blocking=True)
@@ -745,9 +885,6 @@ class Window(QWidget):
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt5'))
-    window = Window()
-    # window.x = 5000
-    # window.y = 5000
-    # window.z = 5000
+    window = DisplayCurrentValues()
     window.show()
     app.exec_()

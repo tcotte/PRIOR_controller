@@ -1,0 +1,8 @@
+from typing import Final
+
+SPACE_BETWEEN_SLIDES: Final = 3300
+SLIDE_WIDTH: Final = 26000
+SLIDE_HEIGHT: Final = 76000
+
+OVERLAP = 60
+IMAGE_SIZE = (210, 175)

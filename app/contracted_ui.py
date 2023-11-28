@@ -23,6 +23,7 @@ class PriorMovement(QWidget):
         layout = QVBoxLayout()
         control_layout = QHBoxLayout()
         xy_widget = XYHandler(parent=self, contracted_widget=True)
+        xy_widget.xy_directions.resize(QSize(200, 200))
         # xy_widget.setFixedSize(QSize(400, 500))
         z_widget = ZHandler(parent=self, contracted_widget=True)
         # z_widget.setFixedSize(QSize(400, 500))
@@ -111,6 +112,7 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt5'))
     window = PriorMovement(prior = SerialSingleton().serial)
+
     # window.x = 5000
     # window.y = 5000
     # window.z = 5000
