@@ -1,12 +1,15 @@
 import functools
+import sys
 from pathlib import Path
 from typing import Union
 
+import qdarkstyle
 import qtawesome as qta
 from PyQt5 import QtGui, QtCore
 from PyQt5.QtCore import QSize, Qt, pyqtSignal
 from PyQt5.QtGui import QCursor, QPainter
-from PyQt5.QtWidgets import QFrame, QLabel, QDockWidget, QStyle, QWidget
+from PyQt5.QtWidgets import QFrame, QLabel, QDockWidget, QStyle, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QDialog, \
+    QGridLayout, QMessageBox, QLayout
 from PyQt5.QtWidgets import QPushButton, QApplication, QToolButton
 
 
@@ -333,3 +336,83 @@ def get_map_cursor() -> QCursor:
     icon = qta.icon('fa.map-marker', color='gray')
     pixmap = icon.pixmap(icon.actualSize(QSize(32, 32)))
     return QCursor(pixmap)
+
+
+class PasswordDialog(QDialog):
+    '''
+    Fenetre de demande de mot de passe
+    '''
+
+    def __init__(self, password: str, description: Union[str, None] = None):
+        super(PasswordDialog, self).__init__()
+
+        self.password = password
+        self.description = description
+
+        password_label = QLabel('Password : ')
+        self.password_line = QLineEdit()
+        self.password_line.setEchoMode(QLineEdit.Password)
+
+        self.error_password_label = QLabel("The entered password was incorrect")
+        self.error_password_label.setStyleSheet("color: red; font: italic 10px; margin-top: 0px; padding-top: 0px;")
+        self.error_password_label.hide()
+        sp_retain = self.error_password_label.sizePolicy()
+        sp_retain.setRetainSizeWhenHidden(True)
+        self.error_password_label.setSizePolicy(sp_retain)
+
+        self.confirm_btn = QPushButton('OK')
+
+        main_layout = QVBoxLayout()
+
+        password_layout = QGridLayout()
+
+        if self.description is None:
+            password_layout.addWidget(password_label, 0, 0, 1, 1)
+            password_layout.addWidget(self.password_line, 0, 1, 1, -1)
+            password_layout.addWidget(self.error_password_label, 1, 1, 1, -1, alignment=Qt.AlignTop)
+
+        else:
+            warning_icon = QLabel()
+            warning_icon.setPixmap(QMessageBox.standardIcon(QMessageBox.Warning))
+
+            description_label = QLabel(self.description)
+            description_label.setWordWrap(True)
+            warning_icon = QLabel()
+            warning_icon.setPixmap(QMessageBox.standardIcon(QMessageBox.Warning))
+
+            password_layout.addWidget(warning_icon, 0, 0, 3, 1, alignment=Qt.AlignCenter)
+            password_layout.addWidget(description_label, 0, 1, 3, -1)
+
+            password_layout.addWidget(password_label, 4, 0, 1, 1)
+            password_layout.addWidget(self.password_line, 4, 1, 1, -1)
+            password_layout.addWidget(self.error_password_label, 5, 1, 1, -1, alignment=Qt.AlignTop)
+
+        main_layout.addLayout(password_layout)
+        main_layout.addWidget(self.confirm_btn)
+
+        self.setLayout(main_layout)
+
+        self.setFixedWidth(300)
+
+        self.confirm_btn.clicked.connect(self.password_check)
+
+    def password_check(self):
+        if self.password_line.text() == self.password:
+            self.accept()
+        else:
+            self.password_line.setText('')
+            self.error_password_label.show()
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    app.setStyleSheet(qdarkstyle.load_stylesheet(qt_api='pyqt5'))
+    description = """
+    Welcome in the init mode ! \n
+    This mode allows to restore the defaults coordinates of the platform. This mode is very sensitive (due to the 
+    possibility to hit the lens), this is why it requires administrator rights to use it. 
+    """
+    window = PasswordDialog(password="Password", description=description)
+    window.show()
+
+    app.exec()
